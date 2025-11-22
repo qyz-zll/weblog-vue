@@ -234,34 +234,32 @@ const uploadAvatarToServer = async (file) => {
     formData.append('avatar', file);
     const accessToken = localStorage.getItem('accessToken');
 
-    // 🌟 关键：service 响应拦截器已返回后端的 data（{code:200, message:"", data:{}}）
-    const resData = await service.post('/upload-avatar/', formData, {
+    const response = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'multipart/form-data'
       }
     });
 
-    // 🌟 修正判断逻辑：直接用后端的 code 判断成功（无需 status）
-    if (resData?.code !== 200) {
-      throw new Error(resData?.message || '头像上传失败');
+    const resData = response.data;
+    if (resData.code !== 200) {
+      throw new Error(resData.message || '头像上传失败');
     }
 
-    // 提取完整头像 URL（后端已返回，直接用）
-    const newAvatarUrl = resData.data?.avatar || '';
-    const validAvatarUrl = newAvatarUrl.startsWith('http') ? newAvatarUrl : defaultAvatar;
+    const baseURL = 'http://127.0.0.1:8000';
+    const newAvatarRelativePath = resData.data?.avatar || '';
+    const newAvatarUrl = newAvatarRelativePath
+      ? `${baseURL}${newAvatarRelativePath}`
+      : defaultAvatar.value;
 
-    // 赋值给 userInfo（ref 变量加 .value）
-    userInfo.value.avatar = validAvatarUrl;
+    // 更新头像并存储
+    userInfo.value.avatar = newAvatarUrl;
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
 
-    ElMessage.success('头像修改成功！'); // 正确提示成功
+    ElMessage.success('头像修改成功！');
   } catch (error) {
-    // 仅真正失败时提示（如后端 code≠200、网络错误）
-    const errMsg = error.message || '网络错误';
-    ElMessage.error('保存失败：' + errMsg);
-    // 错误时兜底头像
-    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar;
+    ElMessage.error('头像上传失败：' + (error.response?.data?.message || error.message));
+    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar.value;
   } finally {
     isAvatarLoading.value = false;
   }

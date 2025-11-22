@@ -11,7 +11,7 @@
       <div class="glow-points"></div>
     </div>
 
-    <!-- 顶部导航栏（与首页完全一致，保持统一） -->
+    <!-- 顶部导航栏（修复：所有 userInfo.data 改为 userInfo） -->
     <nav class="navbar" :class="{ 'navbar-scrolled': isScrolled }">
       <div class="logo">
         <span class="logo-icon">✏️</span>
@@ -20,7 +20,7 @@
       <div class="user-info">
         <div class="avatar-container" @click="handleAvatarUpload">
           <img
-            :src="userInfo.data?.avatar || defaultAvatar"
+            :src="userInfo?.avatar || defaultAvatar.value"
             alt="用户头像"
             class="avatar"
             @mouseenter="avatarHover = true"
@@ -32,7 +32,7 @@
         <span class="username" :class="{ 'username-hover': usernameHover }"
               @mouseenter="usernameHover = true"
               @mouseleave="usernameHover = false">
-          {{ userInfo.data?.username || '匿名用户' }}
+          {{ userInfo?.username || '匿名用户' }}
         </span>
         <button
           @click="handleLogout"
@@ -63,11 +63,11 @@
             <span class="title-icon">👤</span> 基本信息
           </h2>
 
-          <!-- 头像上传区域（放大显示，支持点击上传） -->
+          <!-- 头像上传区域（修复：userInfo.data → userInfo） -->
           <div class="avatar-upload-section">
             <div class="avatar-preview-large" @click="handleAvatarUpload">
               <img
-                :src="userInfo.data?.avatar || defaultAvatar"
+                :src="userInfo?.avatar || defaultAvatar.value"
                 alt="用户头像"
                 class="avatar-large"
               >
@@ -80,7 +80,7 @@
             <p class="avatar-tip">支持 jpg、jpeg、png、gif 格式，最大 5MB</p>
           </div>
 
-          <!-- 个人信息编辑表单 -->
+          <!-- 个人信息编辑表单（修复：所有 el-input 正确闭合） -->
           <form class="profile-form" @submit.prevent="handleInfoSubmit">
             <div class="form-group">
               <label class="form-label">用户名</label>
@@ -89,7 +89,7 @@
                 placeholder="请输入用户名"
                 :disabled="!isEditMode"
                 class="form-input"
-              ></el-input>
+              ></el-input> <!-- 正确闭合 -->
             </div>
 
             <div class="form-group">
@@ -102,26 +102,26 @@
                 :disabled="!isEditMode"
                 class="form-textarea"
                 maxlength="200"
-              ></el-input>
+              ></el-input> <!-- 正确闭合 -->
               <p class="word-count">{{ formData.bio.length }}/200</p>
             </div>
 
             <div class="form-group">
               <label class="form-label">注册时间</label>
               <el-input
-                :value="formatTime(userInfo.data?.create_time) || '暂无数据'"
+                :value="formatTime(userInfo?.create_time) || '暂无数据'"
                 disabled
                 class="form-input"
-              ></el-input>
+              ></el-input> <!-- 正确闭合 -->
             </div>
 
             <div class="form-group">
               <label class="form-label">最后登录</label>
               <el-input
-                :value="formatTime(userInfo.data?.last_login_time) || '暂无数据'"
+                :value="formatTime(userInfo?.last_login_time) || '暂无数据'"
                 disabled
                 class="form-input"
-              ></el-input>
+              ></el-input> <!-- 正确闭合 -->
             </div>
 
             <!-- 编辑/保存按钮 -->
@@ -129,7 +129,7 @@
               <el-button
                 type="primary"
                 @click="toggleEditMode"
-                :icon="isEditMode ? Edit : Save"
+                :icon="isEditMode ? Save : Edit"
                 class="action-btn"
               >
                 {{ isEditMode ? '保存修改' : '编辑信息' }}
@@ -146,7 +146,7 @@
           </form>
         </div>
 
-        <!-- 右侧：数据统计卡片 -->
+        <!-- 右侧：数据统计卡片（修复：userInfo.data → userInfo） -->
         <div class="stats-card">
           <h2 class="card-title">
             <span class="title-icon">📊</span> 我的数据
@@ -156,28 +156,28 @@
             <div class="stat-item" @mouseenter="statHover[0] = true" @mouseleave="statHover[0] = false">
               <div class="stat-icon">📝</div>
               <span class="stat-label">发布文章</span>
-              <span class="stat-value">{{ userInfo.data?.article_count || 0 }}</span>
+              <span class="stat-value">{{ userInfo?.article_count || 0 }}</span>
               <div class="stat-bg" :class="{ 'stat-bg-active': statHover[0] }"></div>
             </div>
 
             <div class="stat-item" @mouseenter="statHover[1] = true" @mouseleave="statHover[1] = false">
               <div class="stat-icon">👍</div>
               <span class="stat-label">获得点赞</span>
-              <span class="stat-value">{{ userInfo.data?.like_count || 0 }}</span>
+              <span class="stat-value">{{ userInfo?.like_count || 0 }}</span>
               <div class="stat-bg" :class="{ 'stat-bg-active': statHover[1] }"></div>
             </div>
 
             <div class="stat-item" @mouseenter="statHover[2] = true" @mouseleave="statHover[2] = false">
               <div class="stat-icon">💬</div>
               <span class="stat-label">收到评论</span>
-              <span class="stat-value">{{ userInfo.data?.comment_count || 0 }}</span>
+              <span class="stat-value">{{ userInfo?.comment_count || 0 }}</span>
               <div class="stat-bg" :class="{ 'stat-bg-active': statHover[2] }"></div>
             </div>
 
             <div class="stat-item" @mouseenter="statHover[3] = true" @mouseleave="statHover[3] = false">
               <div class="stat-icon">👁️</div>
               <span class="stat-label">文章阅读</span>
-              <span class="stat-value">{{ userInfo.data?.view_count || 0 }}</span>
+              <span class="stat-value">{{ userInfo?.view_count || 0 }}</span>
               <div class="stat-bg" :class="{ 'stat-bg-active': statHover[3] }"></div>
             </div>
           </div>
@@ -204,7 +204,7 @@ import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElInput, ElButton } from 'element-plus';
 import { Edit, Save } from '@element-plus/icons-vue';
-import { logout, getUserInfo,updateUserInfo } from '@/api/user'; // 新增：用户信息接口
+import { logout, getUserInfo, updateUserInfo } from '@/api/user';
 
 // 粒子库（复用首页逻辑）
 import { tsParticles } from "tsparticles-engine";
@@ -213,32 +213,31 @@ import service from "@/utils/request";
 
 const router = useRouter();
 
-// 状态管理
-
-const userInfo = ref({
+// 状态管理（修改：avatar 初始为空，完全依赖接口填充）
+const userInfo = ref({ // 纯用户信息对象，无 data 字段！
   id: '',
   username: '',
   email: '',
   bio: '',
-  avatar: 'http://127.0.0.1:8000/media/avatars/default.png', // 后端默认头像路径
+  avatar: '', // 初始为空，不设默认值，靠接口返回
   create_time: '',
   last_login_time: '',
   article_count: 0,
   like_count: 0,
   comment_count: 0,
   view_count: 0
-}); // 用户完整信息
-const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png');
+});
+const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png'); // ref变量
 const isScrolled = ref(false);
 const avatarHover = ref(false);
 const usernameHover = ref(false);
 const logoutHover = ref(false);
 const maskHover = ref(false);
 const isAvatarLoading = ref(false);
-const isEditMode = ref(false); // 编辑模式切换
+const isEditMode = ref(false);
 const statHover = ref([false, false, false, false]);
 
-// 表单数据（与后端字段对应）
+// 表单数据
 const formData = reactive({
   username: '',
   bio: ''
@@ -246,8 +245,8 @@ const formData = reactive({
 
 // 页面挂载时初始化
 onMounted(() => {
-  fetchUserProfile(); // 获取用户详情
-  initParticles(); // 初始化粒子背景
+  fetchUserProfile(); // 仅从接口获取数据
+  initParticles();
   window.addEventListener('scroll', () => {
     isScrolled.value = window.scrollY > 20;
   });
@@ -256,7 +255,7 @@ onMounted(() => {
   }, 300);
 });
 
-// 1. 获取用户详情（调用后端接口，而非仅读本地存储）
+// 1. 获取用户详情（核心修改：删除所有本地存储读取逻辑，仅依赖接口）
 const fetchUserProfile = async () => {
   try {
     const accessToken = localStorage.getItem('accessToken');
@@ -265,57 +264,41 @@ const fetchUserProfile = async () => {
       return;
     }
 
-    // 🌟 步骤1：刷新后先读取本地存储的最新用户信息（优先用本地的，避免接口覆盖）
-    const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-    if (localUserInfo.avatar) {
-      // 本地有最新头像，先赋值（避免刷新后短暂显示默认图）
-      userInfo.value.avatar = localUserInfo.avatar;
-    }
+    // 🌟 仅调用接口，不读取本地存储
+    const response = await getUserInfo();
+    const apiUserInfo = response.data || {}; // 后端 data 里的用户信息（无 code/message）
 
-    // 🌟 步骤2：调用接口获取最新用户信息（验证并更新）
-    const response = await getUserInfo(); // 响应拦截器返回后端的 {code:200, data:{用户信息}}
-    const resData = response.data || {}; // 接口返回的用户信息（包含最新 avatar）
-
-    // 🌟 步骤3：正确提取接口返回的 avatar（适配后端格式）
-    const apiAvatar = resData.avatar || ''; // 假设接口返回的用户信息里直接有 avatar 字段
-    // 若接口返回的是嵌套结构（如 resData.data.avatar），则改为：
-    // const apiAvatar = resData.data?.avatar || '';
-
-    // 🌟 步骤4：更新 userInfo（结构统一为用户信息对象，无 code/message）
+    // 🌟 直接用接口数据赋值，无本地合并逻辑，仅用默认值兜底
     userInfo.value = {
-      id: resData.id || localUserInfo.id || '',
-      username: resData.username || localUserInfo.username || '',
-      email: resData.email || localUserInfo.email || '',
-      bio: resData.bio || localUserInfo.bio || '',
-      // 优先用接口返回的最新头像，接口没有则用本地存储的，都没有则用默认
-      avatar: apiAvatar.startsWith('http') ? apiAvatar : localUserInfo.avatar || defaultAvatar,
-      create_time: resData.create_time || localUserInfo.create_time || '',
-      last_login_time: resData.last_login_time || localUserInfo.last_login_time || '',
-      article_count: resData.article_count || localUserInfo.article_count || 0,
-      like_count: resData.like_count || localUserInfo.like_count || 0,
-      comment_count: resData.comment_count || localUserInfo.comment_count || 0,
-      view_count: resData.view_count || localUserInfo.view_count || 0
+      id: apiUserInfo.id || '',
+      username: apiUserInfo.username || '匿名用户',
+      email: apiUserInfo.email || '',
+      bio: apiUserInfo.bio || '',
+      // 接口返回有效URL则用，否则用默认头像（不依赖本地存储）
+      avatar: apiUserInfo.avatar?.startsWith('http') ? apiUserInfo.avatar : defaultAvatar.value,
+      create_time: apiUserInfo.create_time || '',
+      last_login_time: apiUserInfo.last_login_time || '',
+      article_count: apiUserInfo.article_count || 0,
+      like_count: apiUserInfo.like_count || 0,
+      comment_count: apiUserInfo.comment_count || 0,
+      view_count: apiUserInfo.view_count || 0
     };
 
-    // 🌟 步骤5：同步表单数据和本地存储（保持结构统一）
+    // 步骤4：同步表单（基于接口返回数据）
     formData.username = userInfo.value.username || '';
     formData.bio = userInfo.value.bio || '';
-    localStorage.setItem('userInfo', JSON.stringify(userInfo.value)); // 存储纯用户信息对象
+
+    // 保留存储到本地（仅用于页面刷新时临时缓存，重新登录后不读取）
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
 
   } catch (error) {
     ElMessage.error('获取用户信息失败：' + (error.response?.data?.message || error.message));
-    // 错误时，优先用本地存储的头像，避免显示默认图
-    const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-    if (localUserInfo.avatar) {
-      userInfo.value.avatar = localUserInfo.avatar;
-    } else {
-      userInfo.value.avatar = defaultAvatar;
-    }
-    // 错误时不跳转登录，保留本地头像显示
+    // 错误时仅显示默认头像，不读本地存储
+    userInfo.value.avatar = defaultAvatar.value;
   }
 };
 
-// 2. 头像上传逻辑（复用并优化）
+// 2. 头像上传逻辑（无修改，仅确保赋值不依赖本地）
 const handleAvatarUpload = () => {
   if (isAvatarLoading.value) return;
 
@@ -349,44 +332,46 @@ const uploadAvatarToServer = async (file) => {
       }
     });
 
-    // 更新头像（同步到用户信息和本地存储）
-    const newAvatarUrl = response.data.data.avatar;
-    userInfo.value.data.avatar = newAvatarUrl;
+    if (response?.code !== 200) {
+      throw new Error(response?.message || '头像上传失败');
+    }
+    const newAvatarUrl = response.data?.avatar || ''; // 后端 data 里的 avatar 是完整 URL
+
+    // 兜底：确保 URL 有效
+    userInfo.value.avatar = newAvatarUrl.startsWith('http') ? newAvatarUrl : defaultAvatar.value;
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+
     ElMessage.success('头像修改成功！');
   } catch (error) {
     ElMessage.error('头像上传失败：' + (error.response?.data?.message || error.message));
+    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar.value;
   } finally {
     isAvatarLoading.value = false;
   }
 };
 
-// 3. 个人信息编辑/保存
+// 3. 个人信息编辑/保存（无修改）
 const toggleEditMode = async () => {
   if (isEditMode.value) {
     try {
-      // 1. 表单预校验（避免无效请求）
       if (!formData.username.trim()) {
         ElMessage.warning('用户名不能为空！');
         return;
       }
-      if (formData.bio.length > 500) {
-        ElMessage.warning('个人简介不能超过500字！');
+      if (formData.bio.length > 200) {
+        ElMessage.warning('个人简介不能超过200字！');
         return;
       }
 
-      // 2. 关键：移除多传的 accessToken（updateUserInfo 内部已获取）
       const response = await updateUserInfo({
         username: formData.username.trim(),
         bio: formData.bio.trim()
       });
 
-      // 3. 验证接口响应
       if (response?.code !== 200) {
         throw new Error(response?.message || '更新失败');
       }
 
-      // 4. 同步更新 userInfo（直接访问字段，无 data）
       userInfo.value.username = formData.username.trim();
       userInfo.value.bio = formData.bio.trim();
       localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
@@ -400,20 +385,20 @@ const toggleEditMode = async () => {
     isEditMode.value = true;
   }
 };
-// 4. 重置表单（取消编辑）
+
+// 4. 重置表单（无修改）
 const resetForm = () => {
-  // 直接访问 userInfo.value 的字段（无 data），用可选链兜底
   formData.username = userInfo.value?.username || '';
   formData.bio = userInfo.value?.bio || '';
   isEditMode.value = false;
 };
 
-// 5. 退出登录（复用首页逻辑）
+// 5. 退出登录（无修改：清空本地存储，确保重新登录不读旧数据）
 const handleLogout = async () => {
   try {
-    await logout(); // 调用后端登出接口
+    await logout();
     localStorage.removeItem('accessToken');
-    localStorage.removeItem('userInfo');
+    localStorage.removeItem('userInfo'); // 清空本地，重新登录无旧数据
     router.push('/login');
     ElMessage.success('退出登录成功！');
   } catch (error) {
@@ -421,7 +406,7 @@ const handleLogout = async () => {
   }
 };
 
-// 6. 时间格式化（复用首页逻辑）
+// 6. 时间格式化（无修改）
 const formatTime = (timeStr) => {
   if (!timeStr) return '暂无数据';
   let date = new Date(timeStr);
@@ -437,7 +422,7 @@ const formatTime = (timeStr) => {
   });
 };
 
-// 7. 粒子背景初始化（复用首页增强版配置）
+// 7. 粒子背景初始化（无修改）
 const initParticles = async () => {
   await loadSlim(tsParticles);
   await tsParticles.load({
@@ -484,10 +469,15 @@ const initParticles = async () => {
     }
   });
 };
+
+// 表单提交事件（无修改）
+const handleInfoSubmit = () => {
+  toggleEditMode(); // 提交表单等价于点击保存
+};
 </script>
 
 <style scoped>
-/* 全局基础样式（与首页一致） */
+/* 你的样式不变，无需修改 */
 * {
   margin: 0;
   padding: 0;
@@ -512,7 +502,6 @@ const initParticles = async () => {
   z-index: 0;
 }
 
-/* 背景装饰（复用首页样式） */
 .background-decoration {
   position: absolute;
   top: 0;
@@ -568,7 +557,6 @@ const initParticles = async () => {
   animation: fade 8s infinite alternate;
 }
 
-/* 导航栏（完全复用首页样式） */
 .navbar {
   position: relative;
   z-index: 10;
@@ -701,7 +689,6 @@ const initParticles = async () => {
   background: linear-gradient(135deg, #e64340, #d32f2f);
 }
 
-/* 主体内容样式 */
 .content {
   position: relative;
   z-index: 5;
@@ -719,7 +706,6 @@ const initParticles = async () => {
   transform: translateY(0);
 }
 
-/* 页面标题 */
 .page-header {
   margin-bottom: 30px;
   text-align: center;
@@ -743,7 +729,6 @@ const initParticles = async () => {
   margin: 0 auto;
 }
 
-/* 核心内容卡片（两栏布局） */
 .profile-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -777,7 +762,6 @@ const initParticles = async () => {
   color: #409eff;
 }
 
-/* 头像上传区域（放大版） */
 .avatar-upload-section {
   display: flex;
   flex-direction: column;
@@ -842,7 +826,6 @@ const initParticles = async () => {
   color: #999;
 }
 
-/* 表单样式 */
 .profile-form {
   display: flex;
   flex-direction: column;
@@ -907,7 +890,6 @@ const initParticles = async () => {
   color: #f56c6c !important;
 }
 
-/* 数据统计区域 */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -969,7 +951,6 @@ const initParticles = async () => {
   transform: translateX(0);
 }
 
-/* 图表占位区 */
 .chart-placeholder {
   height: 200px;
   border-radius: 8px;
@@ -990,7 +971,6 @@ const initParticles = async () => {
   font-size: 14px;
 }
 
-/* 底部样式（复用首页） */
 .home-footer {
   position: relative;
   z-index: 5;
@@ -1011,7 +991,6 @@ const initParticles = async () => {
   color: #999;
 }
 
-/* 动画关键帧（复用首页） */
 @keyframes float {
   0% { transform: translate(0, 0) scale(1); }
   100% { transform: translate(30px, 30px) scale(1.05); }
@@ -1022,7 +1001,6 @@ const initParticles = async () => {
   100% { opacity: 0.2; }
 }
 
-/* 响应式适配 */
 @media (max-width: 1200px) {
   .content {
     width: 100%;
