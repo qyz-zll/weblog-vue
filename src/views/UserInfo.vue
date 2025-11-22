@@ -265,16 +265,53 @@ const fetchUserProfile = async () => {
       return;
     }
 
-    const response = await getUserInfo(); // 后端接口：获取用户完整信息
-    userInfo.value = response;
-    // 同步表单数据
-    formData.username = response.data.username || '';
-    formData.bio = response.data.bio || '';
-    // 更新本地存储（保持与后端一致）
-    localStorage.setItem('userInfo', JSON.stringify(response));
+    // 🌟 步骤1：刷新后先读取本地存储的最新用户信息（优先用本地的，避免接口覆盖）
+    const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    if (localUserInfo.avatar) {
+      // 本地有最新头像，先赋值（避免刷新后短暂显示默认图）
+      userInfo.value.avatar = localUserInfo.avatar;
+    }
+
+    // 🌟 步骤2：调用接口获取最新用户信息（验证并更新）
+    const response = await getUserInfo(); // 响应拦截器返回后端的 {code:200, data:{用户信息}}
+    const resData = response.data || {}; // 接口返回的用户信息（包含最新 avatar）
+
+    // 🌟 步骤3：正确提取接口返回的 avatar（适配后端格式）
+    const apiAvatar = resData.avatar || ''; // 假设接口返回的用户信息里直接有 avatar 字段
+    // 若接口返回的是嵌套结构（如 resData.data.avatar），则改为：
+    // const apiAvatar = resData.data?.avatar || '';
+
+    // 🌟 步骤4：更新 userInfo（结构统一为用户信息对象，无 code/message）
+    userInfo.value = {
+      id: resData.id || localUserInfo.id || '',
+      username: resData.username || localUserInfo.username || '',
+      email: resData.email || localUserInfo.email || '',
+      bio: resData.bio || localUserInfo.bio || '',
+      // 优先用接口返回的最新头像，接口没有则用本地存储的，都没有则用默认
+      avatar: apiAvatar.startsWith('http') ? apiAvatar : localUserInfo.avatar || defaultAvatar,
+      create_time: resData.create_time || localUserInfo.create_time || '',
+      last_login_time: resData.last_login_time || localUserInfo.last_login_time || '',
+      article_count: resData.article_count || localUserInfo.article_count || 0,
+      like_count: resData.like_count || localUserInfo.like_count || 0,
+      comment_count: resData.comment_count || localUserInfo.comment_count || 0,
+      view_count: resData.view_count || localUserInfo.view_count || 0
+    };
+
+    // 🌟 步骤5：同步表单数据和本地存储（保持结构统一）
+    formData.username = userInfo.value.username || '';
+    formData.bio = userInfo.value.bio || '';
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value)); // 存储纯用户信息对象
+
   } catch (error) {
-    ElMessage.error('获取用户信息失败：' + (error.message || '网络错误'));
-    router.push('/login');
+    ElMessage.error('获取用户信息失败：' + (error.response?.data?.message || error.message));
+    // 错误时，优先用本地存储的头像，避免显示默认图
+    const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    if (localUserInfo.avatar) {
+      userInfo.value.avatar = localUserInfo.avatar;
+    } else {
+      userInfo.value.avatar = defaultAvatar;
+    }
+    // 错误时不跳转登录，保留本地头像显示
   }
 };
 
@@ -327,17 +364,31 @@ const uploadAvatarToServer = async (file) => {
 // 3. 个人信息编辑/保存
 const toggleEditMode = async () => {
   if (isEditMode.value) {
-    // 保存修改（调用后端更新接口）
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      await updateUserInfo({
-        username: formData.username,
-        bio: formData.bio
-      }, accessToken); // 后端接口：更新用户信息
+      // 1. 表单预校验（避免无效请求）
+      if (!formData.username.trim()) {
+        ElMessage.warning('用户名不能为空！');
+        return;
+      }
+      if (formData.bio.length > 500) {
+        ElMessage.warning('个人简介不能超过500字！');
+        return;
+      }
 
-      // 同步更新用户信息和本地存储
-      userInfo.value.data.username = formData.username;
-      userInfo.value.data.bio = formData.bio;
+      // 2. 关键：移除多传的 accessToken（updateUserInfo 内部已获取）
+      const response = await updateUserInfo({
+        username: formData.username.trim(),
+        bio: formData.bio.trim()
+      });
+
+      // 3. 验证接口响应
+      if (response?.code !== 200) {
+        throw new Error(response?.message || '更新失败');
+      }
+
+      // 4. 同步更新 userInfo（直接访问字段，无 data）
+      userInfo.value.username = formData.username.trim();
+      userInfo.value.bio = formData.bio.trim();
       localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
 
       ElMessage.success('个人信息修改成功！');
@@ -346,17 +397,15 @@ const toggleEditMode = async () => {
       ElMessage.error('保存失败：' + (error.message || '网络错误'));
     }
   } else {
-    // 进入编辑模式
     isEditMode.value = true;
   }
 };
-
 // 4. 重置表单（取消编辑）
 const resetForm = () => {
-  // 关键修正：userInfo 是 ref 变量，脚本中访问需加 .value
-  formData.username = userInfo.value.data?.username || '';
-  formData.bio = userInfo.value.data?.bio || '';
-  isEditMode.value = false; // 已正确使用 .value，无需修改
+  // 直接访问 userInfo.value 的字段（无 data），用可选链兜底
+  formData.username = userInfo.value?.username || '';
+  formData.bio = userInfo.value?.bio || '';
+  isEditMode.value = false;
 };
 
 // 5. 退出登录（复用首页逻辑）

@@ -21,7 +21,7 @@
         <!-- 用户头像（hover旋转+边框渐变） -->
         <div class="avatar-container" @click="handleAvatarUpload">
         <img
-          :src="userInfo.data?.avatar || defaultAvatar"
+           :src="userInfo?.avatar || defaultAvatar"
           alt="用户头像"
           class="avatar"
           @mouseenter="avatarHover = true"
@@ -151,7 +151,7 @@ const router = useRouter();
 
 // 保留原有核心数据（功能不变）
 const userInfo = ref({}); // 存储用户信息
-const defaultAvatar = 'http://127.0.0.1:8000/media/avatars/2025/11/20/5ba1e061c23baae5c67a15f0619b472d.png'; // 保留默认头像
+const defaultAvatar = ''; // 保留默认头像
 
 // 新增动画控制响应式状态（不影响原有功能）
 const isScrolled = ref(false);
@@ -229,45 +229,43 @@ const handleAvatarUpload = () => {
 
 const uploadAvatarToServer = async (file) => {
   isAvatarLoading.value = true;
-  avatarError.value = '';
-
   try {
-    // 1. 构建FormData
     const formData = new FormData();
     formData.append('avatar', file);
-
-    // 2. 获取JWT Token
     const accessToken = localStorage.getItem('accessToken');
-    if (!accessToken) {
-      throw new Error('未登录，请先登录');
-    }
 
-    // 3. 调用后端上传接口
-    const response = await service.post('/upload-avatar/', formData, {
+    // 🌟 关键：service 响应拦截器已返回后端的 data（{code:200, message:"", data:{}}）
+    const resData = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'multipart/form-data'
       }
     });
 
-    // 4. 上传成功：更新头像并持久化存储
-    const newAvatarUrl = response.data.data.avatar;
-    userInfo.value.data.avatar = newAvatarUrl; // 更新用户信息
-    localStorage.setItem('userInfo', JSON.stringify(userInfo.value)); // 持久化到本地
-    ElMessage.success('头像修改成功！');
-  } catch (error) {
-    // 5. 错误处理
-    if (error.response) {
-      avatarError.value = error.response.data.message || '上传失败，请检查文件格式和大小';
-    } else {
-      avatarError.value = error.message;
+    // 🌟 修正判断逻辑：直接用后端的 code 判断成功（无需 status）
+    if (resData?.code !== 200) {
+      throw new Error(resData?.message || '头像上传失败');
     }
-    ElMessage.error(avatarError.value);
+
+    // 提取完整头像 URL（后端已返回，直接用）
+    const newAvatarUrl = resData.data?.avatar || '';
+    const validAvatarUrl = newAvatarUrl.startsWith('http') ? newAvatarUrl : defaultAvatar;
+
+    // 赋值给 userInfo（ref 变量加 .value）
+    userInfo.value.avatar = validAvatarUrl;
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+
+    ElMessage.success('头像修改成功！'); // 正确提示成功
+  } catch (error) {
+    // 仅真正失败时提示（如后端 code≠200、网络错误）
+    const errMsg = error.message || '网络错误';
+    ElMessage.error('保存失败：' + errMsg);
+    // 错误时兜底头像
+    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar;
   } finally {
     isAvatarLoading.value = false;
   }
 };
-
 
 
 // 关键修改：粒子配置增强鼠标跟随效果
