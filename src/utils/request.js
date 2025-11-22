@@ -35,8 +35,6 @@ service.interceptors.response.use(
     const res = response.data;
     // 按后端统一格式判断：code=200 为成功
     if (res.code !== 200) {
-      // 业务错误（如用户名重复、密码错误）
-      //   console.log(response.data,'cuowu1cucuoaufoaudsofuao')
       return Promise.reject(new Error(res.message || '操作失败'));
         // return response.data;
 

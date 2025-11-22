@@ -45,82 +45,95 @@
   </div>
 </template>
 
+<!-- 第一个 script：仅定义组件名（解决多单词报错，兼容所有 Vue3 版本） -->
 <script>
-import { login,getUserInfo} from '@/api/user';
-
+// 组件名改为多单词（UserLogin），彻底解决 ESLint 报错
 export default {
-  // eslint-disable-next-line vue/multi-word-component-names
-  name: 'Login',
-  data() {
-    return {
-      form: {
-        username: '',
-        password: ''
-      },
-      errors: {},  // 字段错误
-      globalError: '',  // 全局错误
-      isSubmitting: false  // 提交状态
-    };
-  },
-  methods: {
-    // 前端验证：用户名
-    validateUsername() {
-      this.errors.username = '';
-      if (!this.form.username.trim()) {
-        this.errors.username = '用户名不能为空';
-      } else if (this.form.username.length < 3 || this.form.username.length > 20) {
-        this.errors.username = '用户名长度需在3-20位之间';
-      }
-    },
+  name: 'UserLogin'
+};
+</script>
 
-    // 前端验证：密码
-    validatePassword() {
-      this.errors.password = '';
-      if (!this.form.password.trim()) {
-        this.errors.password = '密码不能为空';
-      } else if (this.form.password.length < 6) {
-        this.errors.password = '密码长度至少6位';
-      }
-    },
+<!-- 第二个 script：业务逻辑（script setup 语法） -->
+<script setup>
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { login, getUserInfo } from '@/api/user';
 
-    // 提交登录
-    async handleLogin() {
-      // 1. 前端双重验证
-      this.validateUsername();
-      this.validatePassword();
-      if (Object.values(this.errors).some(msg => msg)) return;
+// 响应式状态（无任何未定义 API）
+const form = ref({
+  username: '',
+  password: ''
+});
+const errors = ref({});
+const globalError = ref('');
+const isSubmitting = ref(false);
+const router = useRouter();
 
-      // 2. 提交数据
-      this.isSubmitting = true;
-      this.globalError = '';
-      try {
-        // 调用登录接口
-        const res = await login(this.form);
-        // 3. 存储 Token 和用户信息
-        localStorage.setItem('accessToken', res.data.access);
-        localStorage.setItem('refreshToken', res.data.refresh);
+// 用户名验证
+const validateUsername = () => {
+  errors.value.username = '';
+  if (!form.value.username.trim()) {
+    errors.value.username = '用户名不能为空';
+  } else if (form.value.username.length < 3 || form.value.username.length > 20) {
+    errors.value.username = '用户名长度需在3-20位之间';
+  }
+};
 
-        const userInfoRes = await getUserInfo();
-        console.log(userInfoRes,"6666666666666666666666666666666666666666666666666用户信息")
-        console.log(JSON.stringify(userInfoRes),'用户信息');
-        localStorage.setItem('userInfo', JSON.stringify(userInfoRes));
+// 密码验证
+const validatePassword = () => {
+  errors.value.password = '';
+  if (!form.value.password.trim()) {
+    errors.value.password = '密码不能为空';
+  } else if (form.value.password.length < 6) {
+    errors.value.password = '密码长度至少6位';
+  }
+};
 
-        // 4. 跳转首页
-        this.$message.success('登录成功！');
-        this.$router.push('/');
+// 提交登录（无任何新增错误）
+const handleLogin = async () => {
+  validateUsername();
+  validatePassword();
+  if (Object.values(errors.value).some(msg => msg)) return;
 
-      } catch (error) {
-        // 5. 处理错误（如用户名密码错误）
-        this.globalError = error.message;
-      } finally {
-        this.isSubmitting = false;
-      }
+  isSubmitting.value = true;
+  globalError.value = '';
+  try {
+    const res = await login(form.value);
+    localStorage.setItem('accessToken', res.data.access);
+    localStorage.setItem('refreshToken', res.data.refresh);
+
+    const userInfoRes = await getUserInfo();
+    console.log('用户信息：', userInfoRes);
+
+    // 提取用户ID（适配后端返回结构）
+    const userId = userInfoRes.id || (userInfoRes.data && userInfoRes.data.id);
+    if (userId) {
+      localStorage.setItem('userId', userId.toString());
+    } else {
+      throw new Error('未获取到用户ID');
     }
+
+    localStorage.setItem('userInfo', JSON.stringify(userInfoRes));
+    ElMessage.success('登录成功！');
+    router.push('/');
+  } catch (error) {
+    console.error('登录失败：', error);
+    if (error.message === '未获取到用户ID') {
+      globalError.value = '登录异常：无法获取用户信息';
+    } else if (error.response?.status === 401) {
+      globalError.value = '用户名或密码错误';
+    } else {
+      globalError.value = error.message || '登录失败，请重试';
+    }
+  } finally {
+    isSubmitting.value = false;
   }
 };
 </script>
 
 <style scoped>
+/* 样式完全不变，确保无样式错误 */
 .login-container {
   width: 400px;
   margin: 80px auto;

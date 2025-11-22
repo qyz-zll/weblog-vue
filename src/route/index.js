@@ -7,6 +7,11 @@ import HomeView from '@/views/HomeView.vue'
 import Vue from "vue";
 import UserInfo from "@/views/UserInfo.vue";
 
+// 新增：导入好友功能相关组件（确保路径与你的文件结构一致）
+import FriendList from '@/views/Friends/FriendList.vue'       // 我的好友列表
+import FriendRequestSend from '@/views/Friends/FriendRequestSend.vue' // 添加好友
+import FriendRequestList from '@/views/Friends/FriendRequestList.vue' // 好友申请列表
+
 // 2. 路由规则不变（保留原有的 requiresAuth 元信息）
 const routes = [
   {
@@ -25,14 +30,39 @@ const routes = [
     name: 'Register',
     component: Register
   },
-  // 404 路由：Vue Router 4 推荐用 path: '*' 改为 path: '/:pathMatch(.*)*'（更规范）
+  {
+    path: '/UserInfo',
+    component: UserInfo,
+    meta: { requiresAuth: true } // 个人中心也需登录（补充完整权限）
+  },
+  // 新增：好友功能路由（均需登录，添加 requiresAuth: true）
+  {
+    path: '/friends', // 我的好友列表路径（与首页跳转路径一致）
+    name: 'FriendList',
+    component: FriendList,
+    meta: { requiresAuth: true } // 需登录访问
+  },
+  {
+    path: '/friend-request/send', // 添加好友路径
+    name: 'FriendRequestSend',
+    component: FriendRequestSend,
+    meta: { requiresAuth: true } // 需登录访问
+  },
+  {
+    path: '/friend-request/list', // 好友申请列表路径
+    name: 'FriendRequestList',
+    component: FriendRequestList,
+    meta: { requiresAuth: true } // 需登录访问
+  },
+  // 404 路由：Vue Router 4 推荐用 path: '/:pathMatch(.*)*'（更规范）
   {
     path: '/:pathMatch(.*)*',
     redirect: '/login' // 未匹配路由跳登录页
-  },
-   { path: '/UserInfo', component: UserInfo },
+  }
 ]
+
 console.log(11111111111111111111111111111111,Vue)
+
 // 3. 创建路由实例（Vue Router 4 核心变化）
 const router = createRouter({
   // 替代原 mode: 'hash' → 用 createWebHashHistory() 实现哈希模式
