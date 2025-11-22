@@ -11,7 +11,7 @@
       <div class="glow-points"></div>
     </div>
 
-    <!-- 顶部导航栏（修复：所有 userInfo.data 改为 userInfo） -->
+    <!-- 顶部导航栏 -->
     <nav class="navbar" :class="{ 'navbar-scrolled': isScrolled }">
       <div class="logo">
         <span class="logo-icon">✏️</span>
@@ -25,6 +25,7 @@
             class="avatar"
             @mouseenter="avatarHover = true"
             @mouseleave="avatarHover = false"
+            @error="handleAvatarError"
           >
           <div class="avatar-border" :class="{ 'avatar-border-active': avatarHover }"></div>
           <div class="avatar-loading" v-if="isAvatarLoading">上传中...</div>
@@ -63,13 +64,14 @@
             <span class="title-icon">👤</span> 基本信息
           </h2>
 
-          <!-- 头像上传区域（修复：userInfo.data → userInfo） -->
+          <!-- 头像上传区域 -->
           <div class="avatar-upload-section">
             <div class="avatar-preview-large" @click="handleAvatarUpload">
               <img
                 :src="userInfo?.avatar || defaultAvatar.value"
                 alt="用户头像"
                 class="avatar-large"
+                @error="handleAvatarError"
               >
               <div class="avatar-mask" @mouseenter="maskHover = true" @mouseleave="maskHover = false">
                 <span class="upload-text" :class="{ 'upload-text-active': maskHover }">
@@ -80,7 +82,7 @@
             <p class="avatar-tip">支持 jpg、jpeg、png、gif 格式，最大 5MB</p>
           </div>
 
-          <!-- 个人信息编辑表单（修复：所有 el-input 正确闭合） -->
+          <!-- 个人信息编辑表单 -->
           <form class="profile-form" @submit.prevent="handleInfoSubmit">
             <div class="form-group">
               <label class="form-label">用户名</label>
@@ -89,7 +91,7 @@
                 placeholder="请输入用户名"
                 :disabled="!isEditMode"
                 class="form-input"
-              ></el-input> <!-- 正确闭合 -->
+              ></el-input>
             </div>
 
             <div class="form-group">
@@ -102,7 +104,7 @@
                 :disabled="!isEditMode"
                 class="form-textarea"
                 maxlength="200"
-              ></el-input> <!-- 正确闭合 -->
+              ></el-input>
               <p class="word-count">{{ formData.bio.length }}/200</p>
             </div>
 
@@ -112,7 +114,7 @@
                 :value="formatTime(userInfo?.create_time) || '暂无数据'"
                 disabled
                 class="form-input"
-              ></el-input> <!-- 正确闭合 -->
+              ></el-input>
             </div>
 
             <div class="form-group">
@@ -121,7 +123,7 @@
                 :value="formatTime(userInfo?.last_login_time) || '暂无数据'"
                 disabled
                 class="form-input"
-              ></el-input> <!-- 正确闭合 -->
+              ></el-input>
             </div>
 
             <!-- 编辑/保存按钮 -->
@@ -146,7 +148,7 @@
           </form>
         </div>
 
-        <!-- 右侧：数据统计卡片（修复：userInfo.data → userInfo） -->
+        <!-- 右侧：数据统计卡片 -->
         <div class="stats-card">
           <h2 class="card-title">
             <span class="title-icon">📊</span> 我的数据
@@ -182,7 +184,7 @@
             </div>
           </div>
 
-          <!-- 数据趋势图（占位，可后续集成ECharts） -->
+          <!-- 数据趋势图（占位） -->
           <div class="chart-placeholder">
             <span class="chart-icon">📈</span>
             <p class="chart-text">数据趋势图</p>
@@ -191,7 +193,7 @@
       </div>
     </main>
 
-    <!-- 底部装饰条（与首页一致） -->
+    <!-- 底部装饰条 -->
     <footer class="home-footer">
       <div class="footer-gradient"></div>
       <p class="footer-text">Weblog 博客平台 © 2025 | 记录生活，分享知识</p>
@@ -200,26 +202,26 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElInput, ElButton } from 'element-plus';
 import { Edit, Save } from '@element-plus/icons-vue';
 import { logout, getUserInfo, updateUserInfo } from '@/api/user';
-
-// 粒子库（复用首页逻辑）
 import { tsParticles } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
 import service from "@/utils/request";
 
+// 路由实例
 const router = useRouter();
 
-// 状态管理（修改：avatar 初始为空，完全依赖接口填充）
-const userInfo = ref({ // 纯用户信息对象，无 data 字段！
+// 核心配置
+const baseURL = 'http://127.0.0.1:8000';
+const userInfo = ref({
   id: '',
   username: '',
   email: '',
   bio: '',
-  avatar: '', // 初始为空，不设默认值，靠接口返回
+  avatar: '',
   create_time: '',
   last_login_time: '',
   article_count: 0,
@@ -227,7 +229,9 @@ const userInfo = ref({ // 纯用户信息对象，无 data 字段！
   comment_count: 0,
   view_count: 0
 });
-const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png'); // ref变量
+const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png');
+
+// 状态管理
 const isScrolled = ref(false);
 const avatarHover = ref(false);
 const usernameHover = ref(false);
@@ -243,9 +247,9 @@ const formData = reactive({
   bio: ''
 });
 
-// 页面挂载时初始化
+// 页面挂载初始化
 onMounted(() => {
-  fetchUserProfile(); // 仅从接口获取数据
+  fetchUserProfile();
   initParticles();
   window.addEventListener('scroll', () => {
     isScrolled.value = window.scrollY > 20;
@@ -253,9 +257,14 @@ onMounted(() => {
   setTimeout(() => {
     document.querySelector('.content')?.classList.add('content-visible');
   }, 300);
+
+  // 监听头像变化（调试用）
+  watch(() => userInfo.value.avatar, (newVal) => {
+    console.log('个人中心头像路径更新为：', newVal);
+  }, { immediate: true });
 });
 
-// 1. 获取用户详情（核心修改：删除所有本地存储读取逻辑，仅依赖接口）
+// 获取用户信息函数
 const fetchUserProfile = async () => {
   try {
     const accessToken = localStorage.getItem('accessToken');
@@ -264,18 +273,28 @@ const fetchUserProfile = async () => {
       return;
     }
 
-    // 🌟 仅调用接口，不读取本地存储
-    const response = await getUserInfo();
-    const apiUserInfo = response.data || {}; // 后端 data 里的用户信息（无 code/message）
+    const response = await getUserInfo({
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    console.log('个人中心接口原始响应：', response);
 
-    // 🌟 直接用接口数据赋值，无本地合并逻辑，仅用默认值兜底
+    const resData = response.data || {};
+    const apiUserInfo = resData.data || resData;
+    console.log('个人中心提取的用户信息：', apiUserInfo);
+
+    let finalAvatarUrl = defaultAvatar.value;
+    if (apiUserInfo.avatar && typeof apiUserInfo.avatar === 'string') {
+      finalAvatarUrl = apiUserInfo.avatar.startsWith('http')
+        ? apiUserInfo.avatar
+        : `${baseURL}${apiUserInfo.avatar}`;
+    }
+
     userInfo.value = {
       id: apiUserInfo.id || '',
       username: apiUserInfo.username || '匿名用户',
       email: apiUserInfo.email || '',
       bio: apiUserInfo.bio || '',
-      // 接口返回有效URL则用，否则用默认头像（不依赖本地存储）
-      avatar: apiUserInfo.avatar?.startsWith('http') ? apiUserInfo.avatar : defaultAvatar.value,
+      avatar: finalAvatarUrl,
       create_time: apiUserInfo.create_time || '',
       last_login_time: apiUserInfo.last_login_time || '',
       article_count: apiUserInfo.article_count || 0,
@@ -284,21 +303,20 @@ const fetchUserProfile = async () => {
       view_count: apiUserInfo.view_count || 0
     };
 
-    // 步骤4：同步表单（基于接口返回数据）
+    // 同步表单数据
     formData.username = userInfo.value.username || '';
     formData.bio = userInfo.value.bio || '';
 
-    // 保留存储到本地（仅用于页面刷新时临时缓存，重新登录后不读取）
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
 
   } catch (error) {
+    console.error('个人中心获取用户信息失败：', error);
     ElMessage.error('获取用户信息失败：' + (error.response?.data?.message || error.message));
-    // 错误时仅显示默认头像，不读本地存储
     userInfo.value.avatar = defaultAvatar.value;
   }
 };
 
-// 2. 头像上传逻辑（无修改，仅确保赋值不依赖本地）
+// 头像上传触发函数
 const handleAvatarUpload = () => {
   if (isAvatarLoading.value) return;
 
@@ -308,8 +326,13 @@ const handleAvatarUpload = () => {
   input.onchange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+      if (!validTypes.includes(file.type)) {
+        ElMessage.warning('仅支持 JPG、JPEG、PNG、GIF 格式');
+        return;
+      }
       if (file.size > 5 * 1024 * 1024) {
-        ElMessage.warning('图片大小不能超过5MB');
+        ElMessage.warning('图片大小不能超过 5MB');
         return;
       }
       uploadAvatarToServer(file);
@@ -318,6 +341,7 @@ const handleAvatarUpload = () => {
   input.click();
 };
 
+// 头像上传核心函数
 const uploadAvatarToServer = async (file) => {
   isAvatarLoading.value = true;
   try {
@@ -325,32 +349,93 @@ const uploadAvatarToServer = async (file) => {
     formData.append('avatar', file);
     const accessToken = localStorage.getItem('accessToken');
 
+    // 前置检查：Token 存在性
+    if (!accessToken) {
+      ElMessage.error('登录状态失效，请重新登录');
+      router.push('/login');
+      isAvatarLoading.value = false;
+      return;
+    }
+
+    console.log('=== 个人中心开始上传 ===');
+    console.log('Token 存在：', !!accessToken);
+    console.log('文件信息：', file.name, file.size, file.type);
+
+    // 发起请求
     const response = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+        'Cache-Control': 'no-cache'
+      },
+      timeout: 30000,
+      responseType: 'json'
     });
 
-    if (response?.code !== 200) {
-      throw new Error(response?.message || '头像上传失败');
+    // 成功响应处理
+    console.log('=== 个人中心上传成功响应 ===');
+    console.log('HTTP 状态码：', response.status);
+    console.log('响应体：', JSON.stringify(response.data, null, 2));
+
+    let newAvatarRelativePath = '';
+    const resData = response.data || {};
+    if (resData.avatar) {
+      newAvatarRelativePath = resData.avatar;
+    } else if (resData.data?.avatar) {
+      newAvatarRelativePath = resData.data.avatar;
+    } else if (resData.result?.avatar) {
+      newAvatarRelativePath = resData.result.avatar;
     }
-    const newAvatarUrl = response.data?.avatar || ''; // 后端 data 里的 avatar 是完整 URL
 
-    // 兜底：确保 URL 有效
-    userInfo.value.avatar = newAvatarUrl.startsWith('http') ? newAvatarUrl : defaultAvatar.value;
+    let newAvatarUrl = defaultAvatar.value;
+    if (newAvatarRelativePath) {
+      newAvatarUrl = newAvatarRelativePath.startsWith('http')
+        ? newAvatarRelativePath
+        : `${baseURL}${newAvatarRelativePath}`;
+      newAvatarUrl = `${newAvatarUrl}?t=${Date.now()}`;
+    }
+
+    // 强制更新响应式
+    userInfo.value.avatar = newAvatarUrl;
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
-
+    userInfo.value = { ...userInfo.value };
     ElMessage.success('头像修改成功！');
+
   } catch (error) {
-    ElMessage.error('头像上传失败：' + (error.response?.data?.message || error.message));
-    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar.value;
+    console.error('=== 个人中心上传错误详情 ===');
+    console.error('错误对象：', error);
+    console.error('是否有响应对象：', !!error.response);
+
+    // 错误分类处理
+    let errMsg = '';
+    if (!error.response) {
+      if (error.message.includes('timeout')) {
+        errMsg = '网络超时，请求未到达服务器，请检查网络';
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('Network Error')) {
+        errMsg = '网络连接失败（可能是跨域配置错误或服务器离线）';
+      } else {
+        errMsg = '请求发送失败：' + error.message;
+      }
+    } else {
+      errMsg = `服务器返回状态码 ${error.response.status}：${error.response.data?.message || '上传失败'}`;
+    }
+
+    ElMessage.error(errMsg);
+    if (!userInfo.value.avatar) {
+      userInfo.value.avatar = defaultAvatar.value;
+    }
   } finally {
     isAvatarLoading.value = false;
   }
 };
 
-// 3. 个人信息编辑/保存（无修改）
+// 头像加载失败处理
+const handleAvatarError = () => {
+  console.error('个人中心头像加载失败，切换为默认路径');
+  userInfo.value.avatar = defaultAvatar.value;
+};
+
+// 编辑/保存个人信息
 const toggleEditMode = async () => {
   if (isEditMode.value) {
     try {
@@ -368,8 +453,9 @@ const toggleEditMode = async () => {
         bio: formData.bio.trim()
       });
 
-      if (response?.code !== 200) {
-        throw new Error(response?.message || '更新失败');
+      const resData = response.data || {};
+      if (resData.code !== 200 && resData.code !== undefined) {
+        throw new Error(resData.message || '更新失败');
       }
 
       userInfo.value.username = formData.username.trim();
@@ -386,19 +472,19 @@ const toggleEditMode = async () => {
   }
 };
 
-// 4. 重置表单（无修改）
+// 重置表单
 const resetForm = () => {
   formData.username = userInfo.value?.username || '';
   formData.bio = userInfo.value?.bio || '';
   isEditMode.value = false;
 };
 
-// 5. 退出登录（无修改：清空本地存储，确保重新登录不读旧数据）
+// 退出登录
 const handleLogout = async () => {
   try {
     await logout();
     localStorage.removeItem('accessToken');
-    localStorage.removeItem('userInfo'); // 清空本地，重新登录无旧数据
+    localStorage.removeItem('userInfo');
     router.push('/login');
     ElMessage.success('退出登录成功！');
   } catch (error) {
@@ -406,7 +492,7 @@ const handleLogout = async () => {
   }
 };
 
-// 6. 时间格式化（无修改）
+// 时间格式化
 const formatTime = (timeStr) => {
   if (!timeStr) return '暂无数据';
   let date = new Date(timeStr);
@@ -422,7 +508,7 @@ const formatTime = (timeStr) => {
   });
 };
 
-// 7. 粒子背景初始化（无修改）
+// 粒子背景初始化
 const initParticles = async () => {
   await loadSlim(tsParticles);
   await tsParticles.load({
@@ -470,14 +556,15 @@ const initParticles = async () => {
   });
 };
 
-// 表单提交事件（无修改）
+// 表单提交事件
 const handleInfoSubmit = () => {
-  toggleEditMode(); // 提交表单等价于点击保存
+  toggleEditMode();
 };
 </script>
 
+
 <style scoped>
-/* 你的样式不变，无需修改 */
+/* 原有样式完全不变，无需修改 */
 * {
   margin: 0;
   padding: 0;

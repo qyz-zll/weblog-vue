@@ -20,24 +20,25 @@
       <div class="user-info">
         <!-- 用户头像（hover旋转+边框渐变） -->
         <div class="avatar-container" @click="handleAvatarUpload">
-        <img
-           :src="userInfo?.avatar || defaultAvatar"
-          alt="用户头像"
-          class="avatar"
-          @mouseenter="avatarHover = true"
-          @mouseleave="avatarHover = false"
-        >
-        <div class="avatar-border" :class="{ 'avatar-border-active': avatarHover }"></div>
-        <!-- 新增：上传加载提示 -->
-        <div class="avatar-loading" v-if="isAvatarLoading">上传中...</div>
-        <!-- 新增：上传错误提示 -->
-        <div class="avatar-error" v-if="avatarError">{{ avatarError }}</div>
+          <img
+            :src="userInfo?.avatar || defaultAvatar"
+            alt="用户头像"
+            class="avatar"
+            @mouseenter="avatarHover = true"
+            @mouseleave="avatarHover = false"
+            @error="handleAvatarError"
+          >
+          <div class="avatar-border" :class="{ 'avatar-border-active': avatarHover }"></div>
+          <!-- 新增：上传加载提示 -->
+          <div class="avatar-loading" v-if="isAvatarLoading">上传中...</div>
+          <!-- 新增：上传错误提示 -->
+          <div class="avatar-error" v-if="avatarError">{{ avatarError }}</div>
         </div>
-        <!-- 用户名（渐变色+hover高亮） -->
+        <!-- 用户名（渐变色+hover高亮）：修复 userInfo.data → userInfo -->
         <span class="username" :class="{ 'username-hover': usernameHover }"
               @mouseenter="usernameHover = true"
               @mouseleave="usernameHover = false">
-          {{ userInfo.data?.username || '匿名用户' }}
+          {{ userInfo?.username || '匿名用户' }}
         </span>
         <!-- 退出登录按钮（渐变背景+hover动效） -->
         <button
@@ -59,29 +60,30 @@
       <div class="welcome-card" @mouseenter="cardHover = true" @mouseleave="cardHover = false">
         <div class="card-header">
           <h1 class="welcome-title" :class="{ 'title-hover': cardHover }">
-            欢迎回来，{{ userInfo.data?.username || '探索者' }}！
+            <!-- 修复 userInfo.data → userInfo -->
+            欢迎回来，{{ userInfo?.username || '探索者' }}！
           </h1>
           <!-- 装饰线 -->
           <div class="title-divider" :style="{ width: cardHover ? '200px' : '120px' }"></div>
         </div>
 
-        <!-- 个人简介（带背景板+渐变色文字） -->
+        <!-- 个人简介（带背景板+渐变色文字）：修复 userInfo.data → userInfo -->
         <p class="bio">
           <span class="bio-icon">💬</span>
-          {{ userInfo.data?.bio || '暂无个人简介，可前往个人中心完善' }}
+          {{ userInfo?.bio || '暂无个人简介，可前往个人中心完善' }}
         </p>
 
-        <!-- 统计信息（卡片式+hover上浮） -->
+        <!-- 统计信息（卡片式+hover上浮）：修复 userInfo.data → userInfo -->
         <div class="stats">
           <div class="stat-item" @mouseenter="statHover[0] = true" @mouseleave="statHover[0] = false">
             <div class="stat-icon">📅</div>
             <span class="label">注册时间</span>
-            <span class="value">{{ formatTime(userInfo.data?.create_time) || '暂无数据' }}</span>
+            <span class="value">{{ formatTime(userInfo?.create_time) || '暂无数据' }}</span>
           </div>
           <div class="stat-item" @mouseenter="statHover[1] = true" @mouseleave="statHover[1] = false">
             <div class="stat-icon">⏰</div>
             <span class="label">最后登录</span>
-            <span class="value">{{ formatTime(userInfo.data?.last_login_time) || '暂无数据' }}</span>
+            <span class="value">{{ formatTime(userInfo?.last_login_time) || '暂无数据' }}</span>
           </div>
         </div>
       </div>
@@ -136,24 +138,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue'; // 新增 watch 用于调试
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus'; // Vue3 消息提示组件
-import { logout } from '@/api/user';
-// import { initParticles } from '@/utils/particles.js';
-// import { onMounted } from 'vue'
-// 粒子库（Vue3 适配）
+import { ElMessage } from 'element-plus';
+import { logout, getUserInfo } from '@/api/user'; // 新增：引入后端 getUserInfo 接口
 import { tsParticles } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
 import service from "@/utils/request";
 
 const router = useRouter();
 
-// 保留原有核心数据（功能不变）
-const userInfo = ref({}); // 存储用户信息
-const defaultAvatar = ''; // 保留默认头像
+// 核心修改1：初始化用户信息（无本地存储依赖）
+const userInfo = ref({}); // 仅存储接口返回的用户信息，无默认值
+const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png'); // 完善默认头像路径
+const baseURL = 'http://127.0.0.1:8000'; // 统一后端基础地址
 
-// 新增动画控制响应式状态（不影响原有功能）
+// 动画控制响应式状态（保留原有）
 const isScrolled = ref(false);
 const avatarHover = ref(false);
 const usernameHover = ref(false);
@@ -164,25 +164,69 @@ const funcHover = ref([false, false, false]);
 const isAvatarLoading = ref(false);
 const avatarError = ref('');
 
-// 保留原有功能：从 LocalStorage 读取用户信息
-const getUserInfo = () => {
-  const userStr = localStorage.getItem('userInfo');
-  if (userStr) {
-    userInfo.value = JSON.parse(userStr);
-  } else {
-    // 无用户信息，跳登录页（原有逻辑）
-    router.push('/login');
+// 核心修改2：重写 getUserInfo，仅从接口获取数据（删掉本地存储读取）
+const fetchUserProfile = async () => {
+  try {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      router.push('/login');
+      return;
+    }
+
+    // 调用后端接口（禁用缓存，确保最新数据）
+    const response = await getUserInfo({
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    console.log('首页接口原始响应：', response);
+
+    // 提取接口数据（按实际响应结构调整，确保拿到 avatar 字段）
+    const resData = response.data || {};
+    const apiUserInfo = resData.data || resData; // 兼容两种返回结构
+    console.log('首页提取的用户信息：', apiUserInfo);
+    console.log('首页接口返回的 avatar 相对路径：', apiUserInfo.avatar);
+
+    // 拼接头像完整路径（强制优先使用接口路径）
+    let finalAvatarUrl = defaultAvatar.value;
+    if (apiUserInfo.avatar && typeof apiUserInfo.avatar === 'string' && apiUserInfo.avatar.startsWith('/')) {
+      finalAvatarUrl = `${baseURL}${apiUserInfo.avatar}`;
+      console.log('首页拼接后的完整头像路径：', finalAvatarUrl);
+    }
+
+    // 强制更新 userInfo（覆盖所有字段，无本地兜底）
+    userInfo.value = {
+      id: apiUserInfo.id || '',
+      username: apiUserInfo.username || '匿名用户',
+      bio: apiUserInfo.bio || '',
+      avatar: finalAvatarUrl, // 接口拼接后的路径
+      create_time: apiUserInfo.create_time || '',
+      last_login_time: apiUserInfo.last_login_time || '',
+      article_count: apiUserInfo.article_count || 0,
+      like_count: apiUserInfo.like_count || 0,
+      comment_count: apiUserInfo.comment_count || 0,
+      view_count: apiUserInfo.view_count || 0
+    };
+
+    // 保留本地存储写入（仅用于页面刷新缓存，重新登录不读取）
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+
+  } catch (error) {
+    console.error('首页获取用户信息失败：', error);
+    ElMessage.error('获取用户信息失败：' + (error.message || '网络错误'));
+    userInfo.value.avatar = defaultAvatar.value; // 错误时用默认头像
   }
 };
 
-// 保留原有功能：退出登录
+// 保留原有功能：退出登录（核心修改：清空所有本地存储）
 const handleLogout = async () => {
   try {
-    logout(); // 调用登出接口（原有逻辑）
-    router.push('/login'); // 跳登录页（原有逻辑）
-    ElMessage.success('退出登录成功！'); // Vue3 消息提示
+    await logout(); // 调用登出接口
+    // 清空本地存储，确保重新登录后无旧数据
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('userInfo');
+    router.push('/login');
+    ElMessage.success('退出登录成功！');
   } catch (error) {
-    ElMessage.error('退出失败：' + error.message); // Vue3 消息提示
+    ElMessage.error('退出失败：' + error.message);
   }
 };
 
@@ -190,7 +234,6 @@ const handleLogout = async () => {
 const formatTime = (timeStr) => {
   if (!timeStr) return '暂无数据';
   let date = new Date(timeStr);
-  // 修复 iOS 不识别 "-" 分隔符的兼容问题
   if (isNaN(date.getTime())) {
     date = new Date(timeStr.replace(/-/g, '/'));
   }
@@ -203,21 +246,21 @@ const formatTime = (timeStr) => {
   });
 };
 
-// 保留原有功能：跳转页面（提示待实现）
+// 保留原有功能：跳转页面
 const goToPage = (path) => {
-  // 优化提示信息：跳转到个人中心时显示更精准的提示
   const tipText = path === '/UserInfo'
     ? '正在跳转到个人中心...'
-    : `即将跳转到 ${path} 页面`;
-
-  ElMessage.success(tipText); // 用 success 提示更友好
-  router.push(path); // 取消注释，实现实际跳转
+    : `即将跳转到目标页面`;
+  ElMessage.success(tipText);
+  router.push(path);
 };
+
+// 头像上传逻辑（核心修改：同步接口路径拼接规则）
 const handleAvatarUpload = () => {
-  // 触发文件选择弹窗
+  if (isAvatarLoading.value) return;
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/jpg,image/jpeg,image/png,image/gif'; // 限制图片格式
+  input.accept = 'image/jpg,image/jpeg,image/png,image/gif';
   input.onchange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -227,6 +270,7 @@ const handleAvatarUpload = () => {
   input.click();
 };
 
+
 const uploadAvatarToServer = async (file) => {
   isAvatarLoading.value = true;
   try {
@@ -234,40 +278,94 @@ const uploadAvatarToServer = async (file) => {
     formData.append('avatar', file);
     const accessToken = localStorage.getItem('accessToken');
 
+    // 前置检查：Token 存在性
+    if (!accessToken) {
+      ElMessage.error('登录状态失效，请重新登录');
+      router.push('/login');
+      isAvatarLoading.value = false;
+      return;
+    }
+
+    console.log('=== 个人中心开始上传 ===');
+    console.log('Token 存在：', !!accessToken);
+    console.log('文件信息：', file.name, file.size, file.type);
+
+    // 发起请求
     const response = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+        'Cache-Control': 'no-cache'
+      },
+      timeout: 30000,
+      responseType: 'json'
     });
 
-    const resData = response.data;
-    if (resData.code !== 200) {
-      throw new Error(resData.message || '头像上传失败');
+    // 成功响应处理
+    console.log('=== 个人中心上传成功响应 ===');
+    console.log('HTTP 状态码：', response.status);
+    console.log('响应体：', JSON.stringify(response.data, null, 2));
+
+    let newAvatarRelativePath = '';
+    const resData = response.data || {};
+    if (resData.avatar) {
+      newAvatarRelativePath = resData.avatar;
+    } else if (resData.data?.avatar) {
+      newAvatarRelativePath = resData.data.avatar;
+    } else if (resData.result?.avatar) {
+      newAvatarRelativePath = resData.result.avatar;
     }
 
-    const baseURL = 'http://127.0.0.1:8000';
-    const newAvatarRelativePath = resData.data?.avatar || '';
-    const newAvatarUrl = newAvatarRelativePath
-      ? `${baseURL}${newAvatarRelativePath}`
-      : defaultAvatar.value;
+    let newAvatarUrl = defaultAvatar.value;
+    if (newAvatarRelativePath) {
+      newAvatarUrl = newAvatarRelativePath.startsWith('http')
+        ? newAvatarRelativePath
+        : `${baseURL}${newAvatarRelativePath}`;
+      newAvatarUrl = `${newAvatarUrl}?t=${Date.now()}`;
+    }
 
-    // 更新头像并存储
+    // 强制更新响应式
     userInfo.value.avatar = newAvatarUrl;
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value));
-
+    userInfo.value = { ...userInfo.value };
     ElMessage.success('头像修改成功！');
+
   } catch (error) {
-    ElMessage.error('头像上传失败：' + (error.response?.data?.message || error.message));
-    userInfo.value.avatar = userInfo.value.avatar || defaultAvatar.value;
+    console.error('=== 个人中心上传错误详情 ===');
+    console.error('错误对象：', error);
+    console.error('是否有响应对象：', !!error.response);
+
+    // 错误分类处理
+    let errMsg = '';
+    if (!error.response) {
+      if (error.message.includes('timeout')) {
+        errMsg = '网络超时，请求未到达服务器，请检查网络';
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('Network Error')) {
+        errMsg = '网络连接失败（可能是跨域配置错误或服务器离线）';
+      } else {
+        errMsg = '请求发送失败：' + error.message;
+      }
+    } else {
+      errMsg = `服务器返回状态码 ${error.response.status}：${error.response.data?.message || '上传失败'}`;
+    }
+
+    ElMessage.error(errMsg);
+    if (!userInfo.value.avatar) {
+      userInfo.value.avatar = defaultAvatar.value;
+    }
   } finally {
     isAvatarLoading.value = false;
   }
 };
 
 
-// 关键修改：粒子配置增强鼠标跟随效果
-// / 粒子初始化：配置鼠标跟随效果，仅执行一次
+// 新增：头像加载失败处理
+const handleAvatarError = () => {
+  console.error('首页头像加载失败，切换为默认路径');
+  userInfo.value.avatar = defaultAvatar.value;
+};
+
+// 粒子初始化（保留原有增强配置）
 const initParticles = async () => {
   await loadSlim(tsParticles);
   await tsParticles.load({
@@ -286,34 +384,20 @@ const initParticles = async () => {
         random: true
       },
       particles: {
-        number: {
-          value: 80,
-          density: { enable: true, value_area: 800 },
-          limit: 120
-        },
-        links: {
-          enable: true,
-          distance: 100,
-          color: "#409eff",
-          opacity: 0.4,
-          width: 1
-        },
+        number: { value: 80, density: { enable: true, value_area: 800 }, limit: 120 },
+        links: { enable: true, distance: 100, color: "#409eff", opacity: 0.4, width: 1 },
         move: {
           enable: true,
           direction: "none",
           random: true,
           straight: false,
           outModes: { default: "out" },
-          attract: { // 核心：粒子主动向鼠标吸引
-            enable: true,
-            rotateX: 3000,
-            rotateY: 3000
-          }
+          attract: { enable: true, rotateX: 3000, rotateY: 3000 }
         },
         interactivity: {
           detectsOn: "canvas",
           events: {
-            onHover: { enable: true, mode: ["grab", "attract"] }, // 鼠标悬浮时聚集+吸引
+            onHover: { enable: true, mode: ["grab", "attract"] },
             onClick: { enable: true, mode: "push" },
             resize: true
           },
@@ -323,32 +407,28 @@ const initParticles = async () => {
             attract: { distance: 150, duration: 2, speed: 3 }
           }
         },
-        responsive: [
-          {
-            breakpoint: 768,
-            options: {
-              particles: { number: { value: 40 } },
-              links: { distance: 80 }
-            }
-          }
-        ]
+        responsive: [{ breakpoint: 768, options: { particles: { number: { value: 40 } }, links: { distance: 80 } } }]
       }
     }
   });
 };
 
-// 页面挂载时：执行用户信息读取、粒子初始化、滚动监听
+// 页面挂载时执行（核心修改：调用 fetchUserProfile 而非读本地）
 onMounted(() => {
-  getUserInfo();
+  fetchUserProfile(); // 仅从接口获取用户信息
   window.addEventListener('scroll', () => {
     isScrolled.value = window.scrollY > 20;
   });
-  initParticles(); // 仅调用一次粒子初始化
+  initParticles();
   setTimeout(() => {
     document.querySelector('.content')?.classList.add('content-visible');
   }, 300);
-});
 
+  // 新增：监听头像变化，调试用
+  watch(() => userInfo.value.avatar, (newVal) => {
+    console.log('首页头像最终路径：', newVal);
+  }, { immediate: true });
+});
 </script>
 
 <style scoped>
