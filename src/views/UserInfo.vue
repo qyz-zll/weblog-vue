@@ -185,7 +185,7 @@
           <!-- 数据趋势图（占位，可后续集成ECharts） -->
           <div class="chart-placeholder">
             <span class="chart-icon">📈</span>
-            <p class="chart-text">数据趋势图（待实现）</p>
+            <p class="chart-text">数据趋势图</p>
           </div>
         </div>
       </div>
@@ -200,21 +200,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, toRefs } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElInput, ElButton } from 'element-plus';
 import { Edit, Save } from '@element-plus/icons-vue';
-import { logout, getUserProfile, updateUserProfile } from '@/api/user'; // 新增：用户信息接口
-import axios from 'axios';
+import { logout, getUserInfo,updateUserInfo } from '@/api/user'; // 新增：用户信息接口
 
 // 粒子库（复用首页逻辑）
 import { tsParticles } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
+import service from "@/utils/request";
 
 const router = useRouter();
 
 // 状态管理
-const userInfo = ref({ data: {} }); // 用户完整信息
+
+const userInfo = ref({
+  id: '',
+  username: '',
+  email: '',
+  bio: '',
+  avatar: 'http://127.0.0.1:8000/media/avatars/default.png', // 后端默认头像路径
+  create_time: '',
+  last_login_time: '',
+  article_count: 0,
+  like_count: 0,
+  comment_count: 0,
+  view_count: 0
+}); // 用户完整信息
 const defaultAvatar = ref('http://127.0.0.1:8000/media/avatars/default.png');
 const isScrolled = ref(false);
 const avatarHover = ref(false);
@@ -252,7 +265,7 @@ const fetchUserProfile = async () => {
       return;
     }
 
-    const response = await getUserProfile(); // 后端接口：获取用户完整信息
+    const response = await getUserInfo(); // 后端接口：获取用户完整信息
     userInfo.value = response;
     // 同步表单数据
     formData.username = response.data.username || '';
@@ -292,7 +305,7 @@ const uploadAvatarToServer = async (file) => {
     formData.append('avatar', file);
     const accessToken = localStorage.getItem('accessToken');
 
-    const response = await axios.post('http://127.0.0.1:8000/upload-avatar/', formData, {
+    const response = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'multipart/form-data'
@@ -317,7 +330,7 @@ const toggleEditMode = async () => {
     // 保存修改（调用后端更新接口）
     try {
       const accessToken = localStorage.getItem('accessToken');
-      await updateUserProfile({
+      await updateUserInfo({
         username: formData.username,
         bio: formData.bio
       }, accessToken); // 后端接口：更新用户信息
@@ -340,9 +353,10 @@ const toggleEditMode = async () => {
 
 // 4. 重置表单（取消编辑）
 const resetForm = () => {
-  formData.username = userInfo.data?.username || '';
-  formData.bio = userInfo.data?.bio || '';
-  isEditMode.value = false;
+  // 关键修正：userInfo 是 ref 变量，脚本中访问需加 .value
+  formData.username = userInfo.value.data?.username || '';
+  formData.bio = userInfo.value.data?.bio || '';
+  isEditMode.value = false; // 已正确使用 .value，无需修改
 };
 
 // 5. 退出登录（复用首页逻辑）

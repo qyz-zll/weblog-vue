@@ -1,4 +1,16 @@
 import request from '@/utils/request';
+import axios from 'axios';
+const baseURL = 'http://127.0.0.1:8000';
+
+// 可选：创建 axios 实例（统一配置 baseURL、超时时间等，推荐使用）
+const service = axios.create({
+  baseURL: baseURL, // 使用定义的 baseURL
+  timeout: 10000, // 超时时间 10 秒
+  headers: {
+    'Content-Type': 'application/json', // 默认请求头
+  },
+});
+
 
 /**
  * 登录接口
@@ -6,6 +18,7 @@ import request from '@/utils/request';
  * @param {string} data.username - 用户名
  * @param {string} data.password - 密码
  */
+
 
 export const login = (data) => {
   // 步骤1：request() 执行后返回 Promise，在 Promise 后链 .catch
@@ -72,7 +85,21 @@ export const getUserInfo = () => {
 };
 
 
-
+export const updateUserInfo = async (data) => {
+  const accessToken = localStorage.getItem('accessToken');
+  // 关键：确保发起 PUT 请求到后端接口，返回响应结果
+  const response = await service.put(
+    '/UpdateUserInfo/', // 后端接口路径（必须与 Django 路由一致）
+    data, // 前端传递的 username 和 bio
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`, // 携带 JWT Token
+        'Content-Type': 'application/json' // 明确请求体格式为 JSON
+      }
+    }
+  );
+  return response.data; // 返回后端响应数据（方便前端处理）
+};
 
 /**
  * 退出登录（前端清除存储）

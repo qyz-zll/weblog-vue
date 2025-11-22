@@ -102,7 +102,7 @@
         </div>
         <div
           class="function-card"
-          @click="goToPage('/profile')"
+          @click="goToPage('/UserInfo')"
           @mouseenter="funcHover[1] = true"
           @mouseleave="funcHover[1] = false"
           :class="{ 'func-card-active': funcHover[1] }"
@@ -142,10 +142,10 @@ import { ElMessage } from 'element-plus'; // Vue3 消息提示组件
 import { logout } from '@/api/user';
 // import { initParticles } from '@/utils/particles.js';
 // import { onMounted } from 'vue'
-import axios from "axios";
 // 粒子库（Vue3 适配）
 import { tsParticles } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
+import service from "@/utils/request";
 
 const router = useRouter();
 
@@ -205,9 +205,13 @@ const formatTime = (timeStr) => {
 
 // 保留原有功能：跳转页面（提示待实现）
 const goToPage = (path) => {
-  ElMessage.info(`即将跳转到 ${path} 页面（功能待实现）`); // Vue3 消息提示
-  // 实际跳转逻辑（原有注释保留）
-  // router.push(path);
+  // 优化提示信息：跳转到个人中心时显示更精准的提示
+  const tipText = path === '/UserInfo'
+    ? '正在跳转到个人中心...'
+    : `即将跳转到 ${path} 页面`;
+
+  ElMessage.success(tipText); // 用 success 提示更友好
+  router.push(path); // 取消注释，实现实际跳转
 };
 const handleAvatarUpload = () => {
   // 触发文件选择弹窗
@@ -239,7 +243,7 @@ const uploadAvatarToServer = async (file) => {
     }
 
     // 3. 调用后端上传接口
-    const response = await axios.post('http://127.0.0.1:8000/upload-avatar/', formData, {
+    const response = await service.post('/upload-avatar/', formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'multipart/form-data'

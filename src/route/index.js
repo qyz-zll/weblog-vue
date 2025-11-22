@@ -5,6 +5,7 @@ import Login from '@/views/Login'
 import Register from '@/views/Register'
 import HomeView from '@/views/HomeView.vue'
 import Vue from "vue";
+import UserInfo from "@/views/UserInfo.vue";
 
 // 2. 路由规则不变（保留原有的 requiresAuth 元信息）
 const routes = [
@@ -28,7 +29,8 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     redirect: '/login' // 未匹配路由跳登录页
-  }
+  },
+   { path: '/UserInfo', component: UserInfo },
 ]
 console.log(11111111111111111111111111111111,Vue)
 // 3. 创建路由实例（Vue Router 4 核心变化）
