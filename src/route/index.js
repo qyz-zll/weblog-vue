@@ -10,7 +10,8 @@ import UserInfo from "@/views/UserInfo.vue";
 // 新增：导入好友功能相关组件（确保路径与你的文件结构一致）
 import FriendList from '@/views/Friends/FriendList.vue'       // 我的好友列表
 import FriendRequestSend from '@/views/Friends/FriendRequestSend.vue' // 添加好友
-import FriendRequestList from '@/views/Friends/FriendRequestList.vue' // 好友申请列表
+import FriendRequestList from '@/views/Friends/FriendRequestList.vue'
+import ChatPage from "@/views/ChatPage.vue"; // 好友申请列表
 
 // 2. 路由规则不变（保留原有的 requiresAuth 元信息）
 const routes = [
@@ -58,6 +59,15 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     redirect: '/login' // 未匹配路由跳登录页
+  },
+  {
+    path: '/chat/:friendId', // 动态路由参数：friendId（与跳转路径匹配）
+    name: 'ChatPage',
+    component: ChatPage, // 对应你的聊天页组件
+    props: true, // 允许通过 props 接收 friendId（可选，方便组件内使用）
+    meta: {
+    requiresAuth: true
+    },
   }
 ]
 
