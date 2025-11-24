@@ -31,7 +31,7 @@
         <!-- 消息气泡 -->
         <div class="message-bubble">
           <p class="message-content">{{ msg.content }}</p>
-          <p class="message-time">{{ msg.send_time }}</p>
+          <p class="message-time">{{ formatTimeAdd8h(msg.send_time) || '' }}</p>
         </div>
       </div>
     </div>
@@ -62,7 +62,7 @@ const route = useRoute();
 const router = useRouter();
 const friendId = route.params.friendId; // 好友ID（从路由获取）
 const friendName = ref(route.query.friendName || '未知用户'); // 好友名称
-
+const BaseURl = 'http://localhost:8000';
 // 响应式状态（实时聊天核心）
 const inputContent = ref(''); // 输入框内容
 const messageList = ref([]); // 消息列表（历史+实时）
@@ -93,22 +93,45 @@ const getCurrentUserInfo = async () => {
       method: 'GET'
     });
     // 接口返回格式：{ "code":200, "data": { "id":6, "avatar":"/media/..." } }
+    console.log(res,'接口返回信息');
     const userData = res.data || {}; // 提取 data 字段里的用户数据
     const userId = userData.id;
     const userAvatar = userData.avatar;
-
+    console.log(userAvatar,'返回用户头像');
     if (!userId) {
       throw new Error('用户信息缺少ID字段');
     }
-
     currentUserId.value = userId;
-    currentUserAvatar.value = userAvatar || currentUserAvatar.value; // 有头像则用，否则用默认
+    const getFullAvatarUrl = (avatarRelativePath) => {
+  // 情况1：后端返回的头像为空 → 使用默认头像
+    if (!avatarRelativePath) {
+      return `${BaseURl}/media/avatars/default.png`;
+    }
+    // 情况2：后端返回的头像已带 /media/ 前缀（如 /media/avatars/xxx.png）→ 直接拼接基础地址
+    if (avatarRelativePath.startsWith('/media/')) {
+      return `${BaseURl}${avatarRelativePath}`;
+    }};
+    currentUserAvatar.value = getFullAvatarUrl(userAvatar) || currentUserAvatar.value; // 有头像则用，否则用默认
+    console.log(currentUserAvatar.value,"头像取得这个")
   } catch (error) {
     ElMessage.error('获取用户信息失败，请重新登录');
     console.error('接口返回格式错误：', error.response?.data);
     router.push('/login');
     throw error;
   }
+};
+// 处理时间显示问题
+const formatTimeAdd8h = (time) => {
+  if (!time) return '';
+  const date = new Date(time);
+  if (isNaN(date.getTime())) return ''; // 处理无效时间
+
+  // 核心：加8小时
+  date.setHours(date.getHours() + 8);
+
+  // 格式化（补零统一格式）
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
 // 2. 获取好友头像（接口路径与后端匹配）
@@ -118,8 +141,11 @@ const getFriendAvatar = async () => {
       url: `/users/${friendId}/`, // 后端按ID查询好友信息的接口
       method: 'GET'
     });
-    friendAvatar.value = res.avatar || friendAvatar.value;
-    friendName.value = res.username || friendName.value;
+    friendName.value = res.data.username || friendName.value;
+    friendAvatar.value = res.data.avatar || friendAvatar.value;
+    console.log(friendAvatar.value,"好友头像");
+    console.log(res,"获取用户所有信息以及头像")
+
   } catch (error) {
     console.warn('获取好友头像失败，使用默认头像');
   }
@@ -128,9 +154,10 @@ const getFriendAvatar = async () => {
 const loadHistoryMessages = async () => {
   try {
     const res = await request({
-      url: `/user/messages/`, // 后端历史消息接口（已配置）
+      url: `chat/messages/`, // 后端历史消息接口（已配置）
       method: 'GET',
-      params: { friend_id: friendId } // 传递好友ID查询
+      // params: { friend_id: friendId } // 传递好友ID查询
+      params: { friend_id: friendId }
     });
     messageList.value = res.data || [];
     // 滚动到最新消息

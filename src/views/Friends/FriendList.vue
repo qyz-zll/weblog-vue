@@ -86,7 +86,7 @@
           </div>
 
           <!-- 最后消息时间 -->
-          <div class="last-message-time">{{ item.last_message_time || '' }}</div>
+          <div class="last-message-time">{{ formatTimeAdd8h(item.last_message_time) || '' }}</div>
         </div>
       </div>
     </div>
@@ -137,6 +137,19 @@ const loadFriendList = async () => {
 onMounted(() => {
   loadFriendList();
 });
+// 处理时间显示问题
+const formatTimeAdd8h = (time) => {
+  if (!time) return '';
+  const date = new Date(time);
+  if (isNaN(date.getTime())) return ''; // 处理无效时间
+
+  // 核心：加8小时
+  date.setHours(date.getHours() + 8);
+
+  // 格式化（补零统一格式）
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
 
 // 点击好友跳转聊天页
 const handleItemClick = (friendId, friendName) => {
