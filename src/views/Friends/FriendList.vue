@@ -10,6 +10,12 @@
         <el-icon class="nav-icon"><User /></el-icon>
         <span>通讯录</span>
       </div>
+      <div class="nav-item" @click="goToFriendRequestsPage()">
+        <el-icon class="nav-icon"><Message /></el-icon>
+        <span>好友申请</span>
+        <!-- 未读申请红点（保留） -->
+        <span class="badge" v-if="pendingRequestCount > 0">{{ pendingRequestCount }}</span>
+      </div>
       <div class="nav-item">
         <el-icon class="nav-icon"><Collection /></el-icon>
         <span>收藏</span>
@@ -79,9 +85,15 @@
             <span class="online-status" :class="{ 'online': item.friend_info.is_online }"></span>
           </div>
 
-          <!-- 好友信息（名称+最后消息） -->
+          <!-- 好友信息（名称+在线状态/最后活跃+最后消息） -->
           <div class="friend-info">
-            <div class="friend-name">{{ item.friend_info.username }}</div>
+            <div class="friend-name">
+              {{ item.friend_info.username }}
+              <span class="online-tag" v-if="item.friend_info.is_online">在线</span>
+              <span class="last-active-tag" v-else>
+                最后活跃：{{ formatLastActive(item.friend_info.last_active) }}
+              </span>
+            </div>
             <div class="last-message">{{ item.last_message || '暂无聊天记录' }}</div>
           </div>
 
@@ -94,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElIcon, ElAvatar, ElButton } from 'element-plus';
 import {
@@ -108,7 +120,10 @@ const friendList = ref([]);
 const isLoading = ref(true);
 const isError = ref(false);
 const errorDesc = ref('');
+const pendingRequestCount = ref(0);
 const router = useRouter();
+let timer = null;
+let heartbeatTimer = null;
 
 // 加载好友列表
 const loadFriendList = async () => {
@@ -122,8 +137,6 @@ const loadFriendList = async () => {
     friendList.value = res.data || [];
     if (friendList.value.length === 0) {
       ElMessage.info('暂无好友，快去添加吧～');
-    } else {
-      ElMessage.success(`加载成功，共${friendList.value.length}位好友`);
     }
   } catch (error) {
     isError.value = true;
@@ -134,19 +147,64 @@ const loadFriendList = async () => {
   }
 };
 
-onMounted(() => {
-  loadFriendList();
-});
-// 处理时间显示问题
-const formatTimeAdd8h = (time) => {
-  if (!time) return '';
-  const date = new Date(time);
-  if (isNaN(date.getTime())) return ''; // 处理无效时间
+// 加载未读申请数
+const loadPendingRequestCount = async () => {
+  try {
+    const res = await request({
+      url: '/chat/pending-request-count/',
+      method: 'GET'
+    });
+    pendingRequestCount.value = res.data.count || 0;
+  } catch (error) {
+    console.error('加载未读申请数失败：', error);
+  }
+};
 
-  // 核心：加8小时
+// 发送心跳请求保持在线
+const sendHeartbeat = async () => {
+  try {
+    await request({
+      url: '/chat/heartbeat/',
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('心跳请求失败：', error);
+  }
+};
+
+// 格式化最后活跃时间
+const formatLastActive = (time) => {
+  if (!time) return '未知';
+  const date = new Date(time);
+  if (isNaN(date.getTime())) return '未知';
+
+  // 时区处理：加8小时
   date.setHours(date.getHours() + 8);
 
-  // 格式化（补零统一格式）
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes}分钟前`;
+  if (hours < 24) return `${hours}小时前`;
+  if (days < 7) return `${days}天前`;
+
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+// 处理时间显示（加8小时）
+const formatTimeAdd8h = (time) => {
+  if (!time) return '';
+  const date = new Date(time + 'Z');
+  if (isNaN(date.getTime())) return '';
+
+  const utcHours = date.getUTCHours();
+  date.setHours(utcHours + 8);
+
   const pad = (n) => n.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
@@ -160,10 +218,37 @@ const handleItemClick = (friendId, friendName) => {
   });
 };
 
+// 跳转好友申请页面
+const goToFriendRequestsPage = () => {
+  router.push('/friend-request/list');
+};
+
 // 跳转添加好友页面
 const goToSendRequest = () => {
   router.push('/send-friend-request');
 };
+
+// 页面挂载时初始化
+onMounted(() => {
+  loadFriendList();
+  loadPendingRequestCount();
+  sendHeartbeat();
+
+  // 定时刷新数据（30秒一次）
+  timer = setInterval(() => {
+    loadFriendList();
+    loadPendingRequestCount();
+  }, 30 * 1000);
+
+  // 定时发送心跳（30秒一次）
+  heartbeatTimer = setInterval(sendHeartbeat, 30 * 1000);
+});
+
+// 页面卸载时清除定时器
+onUnmounted(() => {
+  if (timer) clearInterval(timer);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+});
 </script>
 
 <style scoped>
@@ -195,6 +280,7 @@ const goToSendRequest = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 12px;
+  position: relative;
 }
 
 .nav-item.active, .nav-item:hover {
@@ -210,6 +296,21 @@ const goToSendRequest = () => {
 .footer-nav {
   margin-top: auto;
   margin-bottom: 20px;
+}
+
+/* 未读申请红点 */
+.badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 12px;
+  border-radius: 8px;
+  background-color: #f56c6c;
+  color: #fff;
 }
 
 /* 右侧主内容区 */
@@ -268,21 +369,24 @@ const goToSendRequest = () => {
   color: #fff;
 }
 
+/* 在线状态圆点 */
 .online-status {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid #fff;
   background-color: #ccc;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
 }
 
 .online-status.online {
   background-color: #4cd964;
 }
 
+/* 好友信息区域 */
 .friend-info {
   flex: 1;
   overflow: hidden;
@@ -296,6 +400,22 @@ const goToSendRequest = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 4px;
+}
+
+/* 在线标签 */
+.online-tag {
+  font-size: 12px;
+  color: #4cd964;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+/* 最后活跃标签 */
+.last-active-tag {
+  font-size: 12px;
+  color: #999;
+  margin-left: 8px;
+  font-weight: normal;
 }
 
 .last-message {

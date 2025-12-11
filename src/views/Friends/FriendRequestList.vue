@@ -82,12 +82,13 @@ const requestList = ref([]); // 好友申请列表
 // 加载申请列表
 const loadRequestList = async () => {
   try {
-    const res = await getReceivedFriendRequests();
-    // 为每条申请添加 loading 状态（防止重复点击）
-    requestList.value = (res || []).map(item => ({ ...item, loading: false }));
+    const res = await getReceivedFriendRequests(); // res是{code, message, data}
+    const requestData = res.code === 200 ? res.data : [];
+    requestList.value = requestData.map(item => ({ ...item, loading: false }));
   } catch (error) {
     console.error('加载申请列表失败：', error);
     ElMessage.error('加载申请失败：' + (error.message || '网络错误'));
+    requestList.value = [];
   }
 };
 

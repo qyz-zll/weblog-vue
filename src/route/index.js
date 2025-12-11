@@ -12,6 +12,7 @@ import FriendList from '@/views/Friends/FriendList.vue'       // 我的好友列
 import FriendRequestSend from '@/views/Friends/FriendRequestSend.vue' // 添加好友
 import FriendRequestList from '@/views/Friends/FriendRequestList.vue'
 import ChatPage from "@/views/ChatPage.vue"; // 好友申请列表
+import MyArticles from "@/views/MyArticles/MyArticles.vue";
 
 // 2. 路由规则不变（保留原有的 requiresAuth 元信息）
 const routes = [
@@ -67,8 +68,32 @@ const routes = [
     props: true, // 允许通过 props 接收 friendId（可选，方便组件内使用）
     meta: {
     requiresAuth: true
-    },
+    }},
+    {
+    path: '/Articles', // 我的好友列表路径（与首页跳转路径一致）
+    name: 'MyArticles',
+    component: MyArticles,
+    meta: { requiresAuth: true } // 需登录访问
+  },
+    {
+    path: '/blog-detail/:id',  // 动态路由：接收博客ID
+    name: 'BlogDetail',
+    component: () => import('@/views/MyArticles/BlogDetail.vue'),  // 懒加载组件
+    meta: { requiresAuth: true }  // 需登录（只能查看自己的博客）
+  },
+  {
+    path: '/other-blogs',  // 他人博客列表页
+    name: 'OtherBlogs',
+    component: () => import('@/views/MyArticles/OtherBlogs.vue'),
+    meta: { requiresAuth: false }  // 无需登录即可访问
+  },
+  {
+    path: '/other-blog-detail/:id',  // 他人博客详情页
+    name: 'OtherBlogDetail',
+    component: () => import('@/views/MyArticles/OtherBlogDetail.vue'),
+    meta: { requiresAuth: false }  // 无需登录即可访问
   }
+
 ]
 
 console.log(11111111111111111111111111111111,Vue)

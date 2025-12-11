@@ -1,15 +1,18 @@
 // 1. Vue 3 核心导入：替换 Vue 2 的 import Vue from 'vue'
 import { createApp } from 'vue'
 import App from './App.vue'
+import { createPinia } from 'pinia';
 import router from './route'  // 保持原路由导入路径（你的路由文件在 ./route 文件夹）
 import axios from 'axios'  // 保留 axios 导入
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
+import watermarkDirective from './directives/watermark';  // 导入水印指令
 // 引入 Element Plus 图标（可选）
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
+import { useUserStore } from './stores/user';
 // 2. 创建 Vue 3 应用实例（核心变化）
 const app = createApp(App)
-
+const pinia = createPinia();
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component);
 }
@@ -27,6 +30,12 @@ app.config.globalProperties.$message = {
 app.use(ElementPlus)
 // 5. 注册路由（Vue 3 用 app.use() 注册插件）
 app.use(router)
+app.use(pinia)
 
 // 6. 挂载应用到 #app（替代 Vue 2 的 new Vue(...).$mount('#app')）
 app.mount('#app')
+app.directive('watermark', watermarkDirective);
+const userStore = useUserStore(); // pinia 已注册，可正常使用
+if (userStore.userInfo.token) {
+  userStore.fetchUserInfo();
+}
