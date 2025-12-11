@@ -1,21 +1,20 @@
 <template>
-  <div id="app">
-    <!-- 路由出口：登录/注册/首页会在这里渲染 -->
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
-<script>
-export default {
-  name: 'App'
-};
+<script setup>
+// 根组件仅渲染路由视图，无额外逻辑（避免提前调用store）
 </script>
 
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
+<style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-color: #f5f7fa;
 }
 </style>

@@ -1,41 +1,51 @@
-// src/stores/user.js
-import { defineStore } from 'pinia';
-import request from '@/utils/request';
+
+import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
+    isLogin: false,
     userInfo: {
       id: '',
       username: '',
       avatar: '',
-      token: localStorage.getItem('accessToken') || ''
+      bio: '',
+      create_time: '',
+      last_login_time: ''
     },
-    isLogin: false
+    accessToken: localStorage.getItem('accessToken') || ''
   }),
   actions: {
-    setUserInfo(data) {
-      this.userInfo = { ...this.userInfo, ...data };
-      this.isLogin = true;
-      if (data.token) localStorage.setItem('token', data.token);
+    setUserInfo(info) {
+      if (!info) return; // 容错：避免传入空值
+      this.userInfo = { ...this.userInfo, ...info };
+      this.isLogin = !!info.username;
     },
-    logout() {
-      this.userInfo = { id: '', username: '', avatar: '', token: '' };
+    clearUserInfo() {
+      this.userInfo = {
+        id: '',
+        username: '',
+        avatar: '',
+        bio: '',
+        create_time: '',
+        last_login_time: ''
+      };
       this.isLogin = false;
-      localStorage.removeItem('token');
+      this.accessToken = '';
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('userInfo');
     },
-    async fetchUserInfo() {
-      if (!this.userInfo.token) return;
-      try {
-        // 核心修改：接口路径改为/userinfo
-        const res = await request({
-          url: '/userinfo',  // 原路径：/user/info/
-          method: 'GET'
-        });
-        this.setUserInfo(res.data);
-      } catch (error) {
-        console.error('获取用户信息失败：', error);
-        this.logout();
+    initUserInfo() {
+      try { // 容错：避免本地缓存解析失败
+        const localUser = localStorage.getItem('userInfo');
+        if (localUser) {
+          const parsedUser = JSON.parse(localUser);
+          this.userInfo = parsedUser;
+          this.isLogin = true;
+        }
+      } catch (e) {
+        console.error('解析本地用户信息失败：', e);
+        this.isLogin = false;
       }
     }
   }
-});
+})
