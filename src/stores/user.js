@@ -8,7 +8,7 @@ export const useUserStore = defineStore('user', {
       id: '',
       username: '',
       avatar: '',
-      token: localStorage.getItem('token') || ''
+      token: localStorage.getItem('accessToken') || ''
     },
     isLogin: false
   }),
