@@ -71,3 +71,49 @@ export const getOtherBlogDetail = (id) => {
     method: 'get'
   });
 };
+// 1. 发布评论（详情页调用：blogId=详情页的博客ID）
+export const addBlogComment = (blogId, content) => {
+  return request({
+    url: `api/blogs/${blogId}/comment/add/`, // 🌟 改为api/blogs/19/comment/add/（匹配后端路由）
+    method: 'post',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+    },
+    data: {
+      blog_id: blogId,content } // 无需传blog_id，后端通过pk=19获取
+  });
+};
+
+// 2. 获取评论列表（详情页调用：blogId=详情页的博客ID）
+export const getBlogComments = (blogId) => {
+  return request({
+    url: `api/blogs/${blogId}/comment/list/`, // 🌟 改为api/blogs/19/comment/list/（删除query参数）
+    method: 'get',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+    },
+    // 分页参数直接传，无需传blog_id
+    params: { page: 1, page_size: 10 }
+  });
+};
+
+// 3. 点赞/转发（同步适配路径）
+export const likeBlog = (blogId) => {
+  return request({
+    url: `api/blogs/${blogId}/like/`, // 改为api/blogs/19/like/
+    method: 'post',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+    }
+  });
+};
+
+export const shareBlog = (blogId) => {
+  return request({
+    url: `api/blogs/${blogId}/share/`, // 改为api/blogs/19/share/
+    method: 'post',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+    }
+  });
+};

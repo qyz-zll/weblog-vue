@@ -57,7 +57,7 @@
                 <!-- 添加好友按钮：仅登录用户可见 -->
                 <el-button
                   v-if="isLogin"
-                  size="mini"
+                  size="small"
                   type="primary"
                   icon="el-icon-user-plus"
                   @click="addFriend(scope.row.author.id)"
@@ -208,13 +208,30 @@ const handleLoginTip = () => {
 const addFriend = async (targetUserId) => {
   friendLoading.value[targetUserId] = true;
   try {
-    // 调用修改后的addFriend接口：参数为目标用户ID（friendId）
     const res = await sendFriendRequest(targetUserId);
     ElMessage.success(res.data.message || '好友申请发送成功，等待对方审核');
-    // 临时标记为"已申请"（可选，需后端接口返回申请状态）
     isFriend.value[targetUserId] = true;
   } catch (error) {
-    ElMessage.error('添加失败：' + (error.response?.data?.message || error.message || '网络错误'));
+    // ========== 核心修改：精准读取后端返回的message ==========
+    let errMsg = '添加好友失败';
+    // 1. 优先读取 friend_id 下的 message（后端实际返回的提示）
+    if (error.response?.data?.friend_id?.message) {
+      errMsg = error.response.data.friend_id.message; // 这里会拿到"不能添加自己为好友"
+    }
+    // 2. 兼容其他格式（备用）
+    else if (error.response?.data?.message) {
+      errMsg = error.response.data.message;
+    }
+    // 3. 兼容Axios默认错误（比如网络问题）
+    else if (error.message) {
+      errMsg = error.message;
+    }
+
+    // 最终提示（此时会显示"不能添加自己为好友"）
+    ElMessage.error(errMsg);
+    // 调试用：确认读取到的提示（可选，调试完可删）
+    console.log('最终显示的提示：', errMsg);
+    console.log('后端原始返回：', error.response?.data);
   } finally {
     friendLoading.value[targetUserId] = false;
   }

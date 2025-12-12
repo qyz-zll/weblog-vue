@@ -38,7 +38,8 @@ service.interceptors.response.use(
       return Promise.reject(new Error(res.message || '操作失败'));
         // return response.data;
 
-    } else {
+    }
+    else {
       // 成功：返回数据
       return res;
     }

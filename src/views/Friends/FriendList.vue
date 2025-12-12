@@ -1,4 +1,5 @@
 <template>
+  <!-- 模板部分完全不变 -->
   <div class="wechat-layout">
     <!-- 左侧导航栏 -->
     <div class="sidebar">
@@ -13,7 +14,6 @@
       <div class="nav-item" @click="goToFriendRequestsPage()">
         <el-icon class="nav-icon"><Message /></el-icon>
         <span>好友申请</span>
-        <!-- 未读申请红点（保留） -->
         <span class="badge" v-if="pendingRequestCount > 0">{{ pendingRequestCount }}</span>
       </div>
       <div class="nav-item">
@@ -65,40 +65,40 @@
         <el-button type="primary" size="small" @click="goToSendRequest()">添加好友</el-button>
       </div>
 
-      <!-- 好友列表（仿微信样式） -->
+      <!-- 好友列表（修复字段名/在线状态判定） -->
       <div class="friend-list" v-if="!isLoading && !isError && friendList.length > 0">
         <div
           class="friend-item"
           v-for="item in friendList"
-          :key="item.friend_info.id"
-          @click="handleItemClick(item.friend_info.id, item.friend_info.username)"
+          :key="getFriendInfo(item).id"
+          @click="handleItemClick(getFriendInfo(item).id, getFriendInfo(item).username)"
         >
           <!-- 头像+在线状态 -->
           <div class="friend-avatar-container">
             <el-avatar
-              :src="item.friend_info.avatar"
+              :src="getFriendInfo(item).avatar"
               size="small"
               class="friend-avatar"
             >
-              <span class="avatar-placeholder">{{ item.friend_info.username[0] }}</span>
+              <span class="avatar-placeholder">{{ getFriendInfo(item).username[0] || '未知' }}</span>
             </el-avatar>
-            <span class="online-status" :class="{ 'online': item.friend_info.is_online }"></span>
+            <span class="online-status" :class="{ 'online': isFriendOnline(getFriendInfo(item).is_online) }"></span>
           </div>
 
-          <!-- 好友信息（名称+在线状态/最后活跃+最后消息） -->
+          <!-- 好友信息（修复字段名+时区） -->
           <div class="friend-info">
             <div class="friend-name">
-              {{ item.friend_info.username }}
-              <span class="online-tag" v-if="item.friend_info.is_online">在线</span>
+              {{ getFriendInfo(item).username }}
+              <span class="online-tag" v-if="isFriendOnline(getFriendInfo(item).is_online)">在线</span>
               <span class="last-active-tag" v-else>
-                最后活跃：{{ formatLastActive(item.friend_info.last_active) }}
+                最后活跃：{{ formatLastActive(getFriendInfo(item).last_active) }}
               </span>
             </div>
             <div class="last-message">{{ item.last_message || '暂无聊天记录' }}</div>
           </div>
 
-          <!-- 最后消息时间 -->
-          <div class="last-message-time">{{ formatTimeAdd8h(item.last_message_time) || '' }}</div>
+          <!-- 最后消息时间（修复时区） -->
+          <div class="last-message-time">{{ formatMessageTime(item.last_message_time) || '' }}</div>
         </div>
       </div>
     </div>
@@ -125,7 +125,81 @@ const router = useRouter();
 let timer = null;
 let heartbeatTimer = null;
 
-// 加载好友列表
+// 核心修复：适配后端布尔值is_online（true=在线，false=离线）
+const getFriendInfo = (item) => {
+  // 兼容 friend-info（中划线）/ friend_info（下划线）
+  const friendInfo = item.friend_info || item['friend-info'] || {};
+
+  // 关键修改1：布尔值直接保留，不转数字（后端返回true/false）
+  const isOnline = friendInfo.is_online; // 直接取布尔值
+
+  // 最后活跃时间：兼容多种字段名（last_active/last_active_time/last_activ）
+  const lastActiveTime = friendInfo.last_active
+    || friendInfo.last_active_time
+    || friendInfo.last_activ
+    || '';
+
+  return {
+    id: friendInfo.id || '',
+    username: friendInfo.username || '未知好友',
+    // 头像URL补全域名，避免404
+    avatar: friendInfo.avatar
+      ? (friendInfo.avatar.startsWith('http') ? friendInfo.avatar : `http://127.0.0.1:8000${friendInfo.avatar}`)
+      : 'http://127.0.0.1:8000/media/avatars/default.png',
+    is_online: isOnline, // 保留布尔值
+    last_active: lastActiveTime
+  };
+};
+
+// 关键修改2：在线状态判定改为布尔值判定（true=在线）
+const isFriendOnline = (status) => {
+  return status === true; // 仅true时显示在线
+};
+
+// 精准的最后活跃时间格式化（兼容所有时间格式）
+const formatLastActive = (timeStr) => {
+  // 空值/无效值兜底
+  if (!timeStr || timeStr === '未知' || timeStr === '暂无') return '未知';
+
+  // 兼容时间字符串/时间戳
+  let date = new Date(timeStr);
+  if (isNaN(date.getTime())) {
+    date = new Date(Number(timeStr));
+  }
+  if (isNaN(date.getTime())) return '未知';
+
+  // 计算时间差
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // 分级显示
+  if (diffMinutes < 1) return '刚刚';
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+  if (diffHours < 24) return `${diffHours}小时前`;
+  if (diffDays < 7) return `${diffDays}天前`;
+
+  // 超过7天显示具体日期（补零）
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+// 消息时间格式化（同最后活跃时间逻辑）
+const formatMessageTime = (timeStr) => {
+  if (!timeStr) return '';
+  let date = new Date(timeStr);
+  if (isNaN(date.getTime())) {
+    date = new Date(Number(timeStr));
+  }
+  if (isNaN(date.getTime())) return '';
+
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+// 加载好友列表（补充：适配后端{code:200, data:[]}结构）
 const loadFriendList = async () => {
   isLoading.value = true;
   isError.value = false;
@@ -134,7 +208,9 @@ const loadFriendList = async () => {
       url: '/chat/friends/',
       method: 'GET'
     });
-    friendList.value = res.data || [];
+    // 关键补充：后端返回的是{code:200, data:[]}，需取res.data.data
+    friendList.value = res.data?.data || res.data || [];
+    console.log('好友列表原始数据：', friendList.value); // 调试用
     if (friendList.value.length === 0) {
       ElMessage.info('暂无好友，快去添加吧～');
     }
@@ -154,7 +230,7 @@ const loadPendingRequestCount = async () => {
       url: '/chat/pending-request-count/',
       method: 'GET'
     });
-    pendingRequestCount.value = res.data.count || 0;
+    pendingRequestCount.value = res.data?.count || res.data.count || 0;
   } catch (error) {
     console.error('加载未读申请数失败：', error);
   }
@@ -172,45 +248,9 @@ const sendHeartbeat = async () => {
   }
 };
 
-// 格式化最后活跃时间
-const formatLastActive = (time) => {
-  if (!time) return '未知';
-  const date = new Date(time);
-  if (isNaN(date.getTime())) return '未知';
-
-  // 时区处理：加8小时
-  date.setHours(date.getHours() + 8);
-
-  const now = new Date();
-  const diff = now - date;
-  const minutes = Math.floor(diff / (1000 * 60));
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 7) return `${days}天前`;
-
-  const pad = (n) => n.toString().padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
-
-// 处理时间显示（加8小时）
-const formatTimeAdd8h = (time) => {
-  if (!time) return '';
-  const date = new Date(time + 'Z');
-  if (isNaN(date.getTime())) return '';
-
-  const utcHours = date.getUTCHours();
-  date.setHours(utcHours + 8);
-
-  const pad = (n) => n.toString().padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-};
-
 // 点击好友跳转聊天页
 const handleItemClick = (friendId, friendName) => {
+  if (!friendId) return;
   ElMessage.info(`进入与${friendName}的聊天`);
   router.push({
     path: `/chat/${friendId}`,
@@ -228,7 +268,7 @@ const goToSendRequest = () => {
   router.push('/send-friend-request');
 };
 
-// 页面挂载时初始化
+// 页面挂载初始化
 onMounted(() => {
   loadFriendList();
   loadPendingRequestCount();
@@ -244,7 +284,7 @@ onMounted(() => {
   heartbeatTimer = setInterval(sendHeartbeat, 30 * 1000);
 });
 
-// 页面卸载时清除定时器
+// 页面卸载清除定时器
 onUnmounted(() => {
   if (timer) clearInterval(timer);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
@@ -252,14 +292,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 整体布局：左侧导航 + 右侧内容 */
+/* 样式部分完全不变 */
+/* 整体布局 */
 .wechat-layout {
   display: flex;
   height: 100vh;
   background-color: #f7f7f7;
 }
 
-/* 左侧导航栏（仿微信深色侧边栏） */
+/* 左侧侧边栏 */
 .sidebar {
   width: 60px;
   background-color: #272727;
@@ -298,7 +339,7 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-/* 未读申请红点 */
+/* 好友申请小红点 */
 .badge {
   position: absolute;
   top: 10px;
@@ -331,11 +372,11 @@ onUnmounted(() => {
   margin: 0;
 }
 
-/* 好友项样式（仿微信列表项） */
+/* 好友列表 */
 .friend-list {
   display: flex;
   flex-direction: column;
-  gap: 0; /* 去掉间距，用分隔线替代 */
+  gap: 0;
 }
 
 .friend-item {
@@ -343,7 +384,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 12px 0;
   background-color: #fff;
-  border-bottom: 1px solid #eee; /* 分隔线 */
+  border-bottom: 1px solid #eee;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -352,6 +393,7 @@ onUnmounted(() => {
   background-color: #f5f7fa;
 }
 
+/* 头像容器 */
 .friend-avatar-container {
   position: relative;
   margin-right: 16px;
@@ -386,7 +428,7 @@ onUnmounted(() => {
   background-color: #4cd964;
 }
 
-/* 好友信息区域 */
+/* 好友信息 */
 .friend-info {
   flex: 1;
   overflow: hidden;
@@ -402,7 +444,6 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 
-/* 在线标签 */
 .online-tag {
   font-size: 12px;
   color: #4cd964;
@@ -410,7 +451,6 @@ onUnmounted(() => {
   font-weight: normal;
 }
 
-/* 最后活跃标签 */
 .last-active-tag {
   font-size: 12px;
   color: #999;
@@ -434,20 +474,20 @@ onUnmounted(() => {
   margin-right: 10px;
 }
 
-/* 状态样式 */
+/* 状态提示 */
 .loading, .empty-state, .error-state {
   text-align: center;
   padding: 50px 20px;
   color: #666;
 }
 
-.empty-icon, .error-icon {
+.error-icon, .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
   color: #999;
 }
 
-.empty-text, .error-text {
+.error-text, .empty-text {
   margin-bottom: 20px;
   font-size: 14px;
 }
